@@ -1,0 +1,172 @@
+/*
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#ifndef ChallengeModePackets_h__
+#define ChallengeModePackets_h__
+
+#include "Packet.h"
+#include "ObjectGuid.h"
+#include "WorldSession.h"
+
+namespace WorldPackets
+{
+    namespace ChallengeMode
+    {
+        struct PlayerEntry
+        {
+            uint32 AttemptId = 0;
+            uint32 VirtualRealmAddress = 0;
+            uint32 NativeRealmAddress = 0;
+            ObjectGuid Guid;
+            uint32 SpecializationId = 0;
+        };
+
+        //struct ChallengeModeGroupEntry
+        //{
+        //    uint32 AttemptId = 0;
+        //    uint32 MapId = 0;
+        //    uint32 InstanceRealmAddress = 0;
+        //    uint64 GuildId = 0;
+        //    uint32 CompletionTime = 0;
+        //    uint32 CompletionDate = 0;
+        //    uint32 MedalEarned = 0;
+        //    std::list<PlayerEntry*> Players;
+        //};
+
+		struct ChallengeModeGroup
+		{
+			uint32 AttemptId = 0;
+			uint32 MapId = 0;
+			uint32 InstanceRealmAddress = 0;
+			uint64 GuildId = 0;
+			uint32 CompletionTime = 0;
+			uint32 CompletionDate = 0;
+			uint32 MedalEarned = 0;
+			std::list<PlayerEntry*> Players;
+		};
+
+        struct ChallengeModeLeader
+        {
+            std::list<ChallengeModeGroup*> Groups;
+            time_t LastUpdated = time_t(0);
+        };
+
+        class ChallengeModeStart final : public WorldPackets::ServerPacket
+        {
+            public:
+                ChallengeModeStart() : ServerPacket(SMSG_CHALLENGE_MODE_START, 4) { }
+
+                WorldPacket const* Write() override;
+
+                uint32 MapId = 0;
+        };
+
+        class ChallengeModeReset final : public WorldPackets::ServerPacket
+        {
+            public:
+                ChallengeModeReset() : ServerPacket(SMSG_CHALLENGE_MODE_RESET, 4) { }
+
+                WorldPacket const* Write() override;
+
+                uint32 MapId = 0;
+        };
+
+        class ChallengeModeRequestLeaders final : public ClientPacket
+        {
+            public:
+                ChallengeModeRequestLeaders(WorldPacket&& packet) : ClientPacket(CMSG_CHALLENGE_MODE_REQUEST_LEADERS, std::move(packet)) { }
+
+                void Read() override;
+
+                uint32 MapID = 0;
+                uint32 LastRealmUpdate = 0;
+                uint32 LastGuildUpdate = 0;
+        };
+
+        class ChallengeModeRequestLeadersResult final : public WorldPackets::ServerPacket
+        {
+            public:
+                ChallengeModeRequestLeadersResult() : ServerPacket(SMSG_CHALLENGE_MODE_REQUEST_LEADERS_RESULT) { }
+
+                WorldPacket const* Write() override;
+
+                uint32 MapId = 0;
+                ChallengeModeLeader* RealmLeaderboards;
+                ChallengeModeLeader* GuildLeaderboards;
+        };
+
+		class ChallengeModeRequestMapStats final : public ClientPacket
+		{
+			public:
+				ChallengeModeRequestMapStats(WorldPacket&& packet) : ClientPacket(CMSG_CHALLENGE_MODE_REQUEST_MAP_STATS, std::move(packet)) { }
+
+                void Read() override { }
+		};
+
+		struct ChallengeModeMapStats
+		{
+            uint32 MapId = 0;
+			uint32 BestCompletionTime = 0;
+			uint32 LastCompletionTime = 0;
+			uint32 Medal = 0;
+            uint32 BestCompletionDate = 0;
+            uint32 LastCompletionDate = 0;
+			std::list<uint16> Specs;
+		};
+
+		class ChallengeModeRequestMapStatsResult final : public WorldPackets::ServerPacket
+		{
+			public:
+				ChallengeModeRequestMapStatsResult() : ServerPacket(SMSG_CHALLENGE_MODE_ALL_MAP_STATS) { }
+
+				WorldPacket const* Write() override;
+
+				std::map<uint32, ChallengeModeMapStats*> AllMapStats;
+		};
+
+		class ChallengeModeRequestMapStatsUpdateResult final : public WorldPackets::ServerPacket
+		{
+			public:
+				ChallengeModeRequestMapStatsUpdateResult() : ServerPacket(SMSG_CHALLENGE_MODE_MAP_STATS_UPDATE) { }
+
+				WorldPacket const* Write() override;
+
+				ChallengeModeMapStats* MapStats;
+		};
+
+		class ChallengeModeNewPlayerRecord final : public WorldPackets::ServerPacket
+		{
+			public:
+				ChallengeModeNewPlayerRecord() : ServerPacket(SMSG_CHALLENGE_MODE_NEW_PLAYER_RECORD) { }
+
+				WorldPacket const* Write() override;
+
+				uint32 MapID;
+				uint32 Time;
+				uint32 Medal;
+		};
+
+        class ResetChallengeMode final : public ClientPacket
+        {
+            public:
+                ResetChallengeMode(WorldPacket&& packet) : ClientPacket(CMSG_RESET_CHALLENGE_MODE, std::move(packet)) { }
+
+                void Read() override { }
+        };
+    }
+}
+#endif // ChallengeModePackets_h__

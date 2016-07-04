@@ -180,6 +180,7 @@ TC_GAME_API extern DBCStorage<PhaseEntry>                       sPhaseStore;
 TC_GAME_API extern DBCStorage<PowerDisplayEntry>                sPowerDisplayStore;
 TC_GAME_API extern DBCStorage<QuestFactionRewEntry>             sQuestFactionRewardStore;
 TC_GAME_API extern DBCStorage<RandomPropertiesPointsEntry>      sRandomPropertiesPointsStore;
+TC_GAME_API extern DBCStorage<ScenarioStepEntry>                sScenarioStepStore;
 TC_GAME_API extern DBCStorage<SkillLineAbilityEntry>            sSkillLineAbilityStore;
 TC_GAME_API extern DBCStorage<SkillLineEntry>                   sSkillLineStore;
 TC_GAME_API extern DBCStorage<SkillRaceClassInfoEntry>          sSkillRaceClassInfoStore;

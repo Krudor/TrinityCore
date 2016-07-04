@@ -42,6 +42,7 @@ go_amberpine_outhouse
 go_hive_pod
 go_veil_skith_cage
 go_toy_train_set
+go_challengers_orb
 EndContentData */
 
 #include "ScriptMgr.h"
@@ -1168,6 +1169,40 @@ class go_toy_train_set : public GameObjectScript
         }
 };
 
+class go_challengers_orb : public GameObjectScript
+{
+public:
+    go_challengers_orb() : GameObjectScript("go_challengers_orb") { }
+
+    bool OnGossipHello(Player* player, GameObject* go) override
+    {
+        bool canInteract = false;
+        if (InstanceMap* instanceMap = dynamic_cast<InstanceMap*>(player->GetMap()))
+            if (Scenario* scenario = instanceMap->GetScenario())
+                if (ChallengeMode* challengeMode = scenario->GetChallengeMode())
+                    if (challengeMode->GetState() == NOT_STARTED)
+                        canInteract = true;
+
+        if (!canInteract)
+            return true;
+
+        player->PrepareGossipMenu(go, 13872, true);
+        player->SendPreparedGossip(go);
+        return true;
+    }
+
+    bool OnGossipSelect(Player* player, GameObject* go, uint32 /*sender*/, uint32 /*action*/) override
+    {
+        if (InstanceMap* instanceMap = dynamic_cast<InstanceMap*>(player->GetMap()))
+            if (Scenario* scenario = instanceMap->GetScenario())
+                if (ChallengeMode* challengeMode = scenario->GetChallengeMode())
+                    challengeMode->Start(5);
+
+        player->CLOSE_GOSSIP_MENU();
+        return true;
+    }
+};
+
 void AddSC_go_scripts()
 {
     new go_cat_figurine();
@@ -1204,4 +1239,5 @@ void AddSC_go_scripts()
     new go_frostblade_shrine();
     new go_midsummer_bonfire();
     new go_toy_train_set();
+    new go_challengers_orb();
 }

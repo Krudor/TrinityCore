@@ -10333,6 +10333,9 @@ Unit* Creature::SelectVictim()
             return target;
     }
 
+	if (!IsInCombat())
+		return nullptr;
+
     Unit::AuraEffectList const& iAuras = GetAuraEffectsByType(SPELL_AURA_MOD_INVISIBILITY);
     if (!iAuras.empty())
     {

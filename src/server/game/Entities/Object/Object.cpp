@@ -2428,18 +2428,37 @@ Creature* WorldObject::SummonTrigger(float x, float y, float z, float ang, uint3
 * @param group Id of group to summon.
 * @param list  List to store pointers to summoned creatures.
 */
-void WorldObject::SummonCreatureGroup(uint8 group, std::list<TempSummon*>* list /*= NULL*/)
+std::list<TempSummon*>* WorldObject::_SummonCreatureGroup(uint8 group)
 {
+    std::list<TempSummon*>* list = new std::list<TempSummon*>();
     ASSERT((GetTypeId() == TYPEID_GAMEOBJECT || GetTypeId() == TYPEID_UNIT) && "Only GOs and creatures can summon npc groups!");
 
     std::vector<TempSummonData> const* data = sObjectMgr->GetSummonGroup(GetEntry(), GetTypeId() == TYPEID_GAMEOBJECT ? SUMMONER_TYPE_GAMEOBJECT : SUMMONER_TYPE_CREATURE, group);
     if (!data)
-        return;
+        return list;
 
     for (std::vector<TempSummonData>::const_iterator itr = data->begin(); itr != data->end(); ++itr)
         if (TempSummon* summon = SummonCreature(itr->entry, itr->pos, itr->type, itr->time))
-            if (list)
-                list->push_back(summon);
+            list->push_back(summon);
+
+    return list;
+}
+
+void WorldObject::SummonCreatureGroup(uint8 group)
+{
+    _SummonCreatureGroup(group);
+}
+
+void WorldObject::SummonCreatureGroup(uint8 group, std::list<TempSummon*>* list)
+{
+    list = _SummonCreatureGroup(group);
+}
+
+void WorldObject::SummonCreatureGroup(uint8 group, GuidList* list)
+{
+    std::list<TempSummon*>* summons = _SummonCreatureGroup(group);
+    for (std::list<TempSummon*>::iterator itr = summons->begin(); itr != summons->end(); itr++)
+        list->push_back((*itr)->GetGUID());
 }
 
 Creature* WorldObject::FindNearestCreature(uint32 entry, float range, bool alive) const

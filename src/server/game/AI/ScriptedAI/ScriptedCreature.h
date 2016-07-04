@@ -24,6 +24,8 @@
 #include "CreatureAIImpl.h"
 #include "InstanceScript.h"
 #include "TaskScheduler.h"
+#include "PetDefines.h"
+#include "Vehicle.h"
 
 #define CAST_AI(a, b)   (dynamic_cast<a*>(b))
 #define ENSURE_AI(a,b)  (EnsureAI<a>(b))
@@ -374,6 +376,59 @@ class TC_GAME_API BossAI : public ScriptedAI
 
     private:
         uint32 const _bossId;
+};
+
+class TC_GAME_API NewReset_BossAI : public BossAI
+{
+    public:
+        NewReset_BossAI(Creature* creature, uint32 bossId) : BossAI(creature, bossId) { }
+
+        virtual void FullReset(bool initialize = false) { if (!initialize)me->Respawn(true); }
+
+        void EnterEvadeMode(EvadeReason why) override
+        {
+            if (!_EnterEvadeMode(why))
+                return;
+
+            TC_LOG_DEBUG("entities.unit", "Creature %u enters evade mode.", me->GetEntry());
+
+            if (!me->GetVehicle()) // otherwise me will be in evade mode forever
+            {
+                if (Unit* owner = me->GetCharmerOrOwner())
+                {
+                    me->GetMotionMaster()->Clear(false);
+                    me->GetMotionMaster()->MoveFollow(owner, PET_FOLLOW_DIST, me->GetFollowAngle(), MOTION_SLOT_ACTIVE);
+                }
+                else
+                {
+                    // Required to prevent attacking creatures that are evading and cause them to reenter combat
+                    // Does not apply to MoveFollow
+                    me->AddUnitState(UNIT_STATE_EVADE);
+                    me->GetMotionMaster()->MoveTargetedHome();
+                }
+            }
+
+            //Reset();
+
+            if (me->IsVehicle()) // use the same sequence of addtoworld, aireset may remove all summons!
+                me->GetVehicleKit()->Reset(true);
+
+            _DespawnAtEvade();
+        }
+
+        virtual void ResetVariables() { }
+        void Talk(uint8 id, WorldObject const* whisperTarget, std::chrono::seconds cooldown);
+        void UpdateAI(uint32 diff) override;
+private:
+    EventMap _talkCooldownEvents;
+};
+
+class TC_GAME_API NewReset_ScriptedAI : public ScriptedAI
+{
+    public:
+        NewReset_ScriptedAI(Creature* creature) : ScriptedAI(creature) { }
+
+        virtual void FullReset(bool initialize = false) { me->Respawn(true); }
 };
 
 class TC_GAME_API WorldBossAI : public ScriptedAI

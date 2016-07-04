@@ -283,7 +283,7 @@ enum RBACPermissions
     RBAC_PERM_COMMAND_GM_VISIBLE                             = 376,
     RBAC_PERM_COMMAND_GO                                     = 377,
     RBAC_PERM_COMMAND_GO_CREATURE                            = 378,
-    RBAC_PERM_COMMAND_GO_GRAVEYARD                           = 379,
+    RBAC_PERM_COMMAND_GO_WORLD_SAFE_LOC                      = 379,
     RBAC_PERM_COMMAND_GO_GRID                                = 380,
     RBAC_PERM_COMMAND_GO_OBJECT                              = 381,
     RBAC_PERM_COMMAND_GO_TAXINODE                            = 382,
@@ -728,6 +728,7 @@ enum RBACPermissions
     RBAC_PERM_COMMAND_GO_QUEST                               = 834,
     RBAC_PERM_COMMAND_DEBUG_LOADCELLS                        = 835,
     RBAC_PERM_COMMAND_DEBUG_BOUNDARY                         = 836,
+    RBAC_PERM_COMMAND_RELOAD_CHALLENGE_MODE                  = 837,
 
     // custom permissions 1000+
     RBAC_PERM_MAX

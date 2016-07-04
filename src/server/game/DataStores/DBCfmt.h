@@ -93,6 +93,7 @@ char const QuestFactionRewardfmt[] = "niiiiiiiiii";
 char const PowerDisplayfmt[] = "nixXXX";
 char const PvpDifficultyfmt[] = "diiii";
 char const RandPropPointsfmt[] = "niiiiiiiiiiiiiii";
+char const ScenarioStepfmt[] = "niiissiiii";
 char const SkillLinefmt[] = "nisxixixx";
 char const SkillLineAbilityfmt[] = "niiiiiiiiiiii";
 char const SkillRaceClassInfofmt[] = "diiiiiii";

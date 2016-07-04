@@ -207,6 +207,7 @@ enum CriteriaAdditionalCondition
     CRITERIA_ADDITIONAL_CONDITION_RATED_BATTLEGROUND            = 63, // NYI
     CRITERIA_ADDITIONAL_CONDITION_PROJECT_RARITY                = 65,
     CRITERIA_ADDITIONAL_CONDITION_PROJECT_RACE                  = 66,
+    CRITERIA_ADDITIONAL_CONDITION_CHALLENGE_MODE_MEDAL          = 83,
     CRITERIA_ADDITIONAL_CONDITION_BATTLE_PET_SPECIES            = 91,
     CRITERIA_ADDITIONAL_CONDITION_GARRISON_FOLLOWER_QUALITY     = 145,
     CRITERIA_ADDITIONAL_CONDITION_GARRISON_FOLLOWER_LEVEL       = 146,
@@ -261,6 +262,7 @@ enum CriteriaTypes
     CRITERIA_TYPE_DEATH_IN_DUNGEON                      = 18,
     CRITERIA_TYPE_COMPLETE_RAID                         = 19,
     CRITERIA_TYPE_KILLED_BY_CREATURE                    = 20,
+    CRITERIA_TYPE_MANUAL_TRIGGER_BY_CRITERIA_ID         = 21,
     CRITERIA_TYPE_KILLED_BY_PLAYER                      = 23,
     CRITERIA_TYPE_FALL_WITHOUT_DYING                    = 24,
     CRITERIA_TYPE_DEATHS_FROM                           = 26,
@@ -306,6 +308,7 @@ enum CriteriaTypes
     CRITERIA_TYPE_USE_GAMEOBJECT                        = 68,
     CRITERIA_TYPE_BE_SPELL_TARGET2                      = 69,
     CRITERIA_TYPE_SPECIAL_PVP_KILL                      = 70,
+    CRITERIA_TYPE_COMPLETE_CHALLENGE_MODE               = 71,
     CRITERIA_TYPE_FISH_IN_GAMEOBJECT                    = 72,
     /// @todo 73: Achievements 1515, 1241, 1103 (Name: Mal'Ganis)
     CRITERIA_TYPE_ON_LOGIN                              = 74,
@@ -324,6 +327,7 @@ enum CriteriaTypes
     CRITERIA_TYPE_KNOWN_FACTIONS                        = 89,
     CRITERIA_TYPE_LOOT_EPIC_ITEM                        = 90,
     CRITERIA_TYPE_RECEIVE_EPIC_ITEM                     = 91,
+    CRITERIA_TYPE_SEND_EVENT                            = 92,
     CRITERIA_TYPE_ROLL_NEED                             = 93,
     CRITERIA_TYPE_ROLL_GREED                            = 94,
     CRITERIA_TYPE_HIGHEST_HIT_DEALT                     = 101,
@@ -386,11 +390,11 @@ enum CriteriaTypes
     CRITERIA_TYPE_CONSTRUCT_GARRISON_BUILDING           = 169,
     CRITERIA_TYPE_UPGRADE_GARRISON                      = 170,
     CRITERIA_TYPE_START_GARRISON_MISSION                = 171,
-    // 172
+    CRITERIA_TYPE_COMPLETE_NAVAL_MISSION                = 172,
     CRITERIA_TYPE_COMPLETE_GARRISON_MISSION_COUNT       = 173,
     CRITERIA_TYPE_COMPLETE_GARRISON_MISSION             = 174,
     CRITERIA_TYPE_RECRUIT_GARRISON_FOLLOWER_COUNT       = 175,
-    // 176
+    CRITERIA_TYPE_RECRUIT_TRANSPORT_FOLLOWER            = 176,
     // 177
     CRITERIA_TYPE_LEARN_GARRISON_BLUEPRINT_COUNT        = 178,
     // 179
@@ -409,6 +413,8 @@ enum CriteriaTypes
 
 enum CriteriaTreeOperator
 {
+    CRITERIA_TREE_OPERATOR_OR  = 1, // OR Child values combined equals our
+    CRITERIA_TREE_OPERATOR_UNK_1= 2,
     CRITERIA_TREE_OPERATOR_ALL  = 4,
     CRITERIA_TREE_OPERATOR_ANY  = 8
 };
@@ -657,6 +663,22 @@ enum TotemCategoryType
     TOTEM_CATEGORY_TYPE_STONE           = 22,
     TOTEM_CATEGORY_TYPE_HAMMER          = 23,
     TOTEM_CATEGORY_TYPE_SPANNER         = 24
+};
+
+enum ScenarioStepType
+{
+    SCENARIO_STEP_FLAG_BONUS_OBJECTIVE  = 1,
+    SCENARIO_STEP_FLAG_UNKNOWN_1        = 2,
+};
+
+enum ScenarioEntryFlag
+{
+    SCENARIO_ENTRY_FLAG_NONE            = 0x0,
+    SCENARIO_ENTRY_FLAG_CHALLENGE_MODE  = 0x1, // Unverified
+    SCENARIO_ENTRY_FLAG_UNK_1           = 0x2,
+    SCENARIO_ENTRY_FLAG_DUNGEON         = 0x8, // Unverified
+    SCENARIO_ENTRY_FLAG_UNK_2           = 0x10,
+
 };
 
 // SummonProperties.dbc, col 1

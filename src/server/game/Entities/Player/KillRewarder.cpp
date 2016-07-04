@@ -278,6 +278,10 @@ void KillRewarder::Reward()
         if (ObjectGuid::LowType guildId = victim->GetMap()->GetOwnerGuildId())
             if (Guild* guild = sGuildMgr->GetGuildById(guildId))
                 guild->UpdateCriteria(CRITERIA_TYPE_KILL_CREATURE, victim->GetEntry(), 1, 0, victim, _killer);
+
+        if (InstanceMap* instanceMap = victim->GetMap()->ToInstanceMap())
+            if (Scenario* scenario = instanceMap->GetScenario())
+                scenario->UpdateCriteria(CRITERIA_TYPE_KILL_CREATURE, victim->GetEntry(), 1, 0, victim, _killer);
     }
 
 }

@@ -31,6 +31,7 @@
 #include "BattlePetMgr.h"
 #include "BlackMarketMgr.h"
 #include "CalendarMgr.h"
+#include "ChallengeModeMgr.h"
 #include "Channel.h"
 #include "CharacterDatabaseCleaner.h"
 #include "Chat.h"
@@ -58,6 +59,7 @@
 #include "Player.h"
 #include "PoolMgr.h"
 #include "GitRevision.h"
+#include "ScenarioMgr.h"
 #include "ScriptMgr.h"
 #include "ScriptReloadMgr.h"
 #include "SkillDiscovery.h"
@@ -978,6 +980,8 @@ void World::LoadConfigSettings(bool reload)
     m_int_configs[CONFIG_INSTANCE_RESET_TIME_HOUR]  = sConfigMgr->GetIntDefault("Instance.ResetTimeHour", 4);
     m_int_configs[CONFIG_INSTANCE_UNLOAD_DELAY] = sConfigMgr->GetIntDefault("Instance.UnloadDelay", 30 * MINUTE * IN_MILLISECONDS);
 
+    m_int_configs[CONFIG_CHALLENGE_MODE_RESET_COOLDOWN] = sConfigMgr->GetIntDefault("ChallengeMode.ResetCooldown", 120);
+
     m_int_configs[CONFIG_MAX_PRIMARY_TRADE_SKILL] = sConfigMgr->GetIntDefault("MaxPrimaryTradeSkill", 2);
     m_int_configs[CONFIG_MIN_PETITION_SIGNS] = sConfigMgr->GetIntDefault("MinPetitionSigns", 4);
     if (m_int_configs[CONFIG_MIN_PETITION_SIGNS] > 4)
@@ -1760,6 +1764,12 @@ void World::SetInitialWorldSettings()
     TC_LOG_INFO("server.loading", "Loading Dungeon boss data...");
     sObjectMgr->LoadInstanceEncounters();
 
+    TC_LOG_INFO("server.loading", "Loading Instance map data...");
+    sObjectMgr->LoadInstanceMapData();
+
+    TC_LOG_INFO("server.loading", "Loading challenge mode data...");
+    sObjectMgr->LoadChallengeModeData();
+
     TC_LOG_INFO("server.loading", "Loading LFG rewards...");
     sLFGMgr->LoadRewards();
 
@@ -1947,6 +1957,13 @@ void World::SetInitialWorldSettings()
 
     TC_LOG_INFO("server.loading", "Loading garrison info...");
     sGarrisonMgr.Initialize();
+
+    TC_LOG_INFO("server.loading", "Loading scenarios");
+    sScenarioMgr->LoadDBCData();
+    sScenarioMgr->LoadDBData();
+
+    TC_LOG_INFO("server.loading", "Loading challenge mode leaderboards");
+    sChallengeModeMgr->LoadChallengeModes();
 
     ///- Handle outdated emails (delete/return)
     TC_LOG_INFO("server.loading", "Returning old mails...");

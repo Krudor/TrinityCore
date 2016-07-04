@@ -179,10 +179,19 @@ bool ForcedDespawnDelayEvent::Execute(uint64 /*e_time*/, uint32 /*p_time*/)
     return true;
 }
 
+bool DelayedAggressionEvent::Execute(uint64 /*e_time*/, uint32 /*p_time*/)
+{
+    if (m_owner.GetReactState() != m_newState) // May have changed since we scheduled it
+        return true;
+
+	m_owner.SetReactState(m_originalState);
+	return true;
+}
+
 Creature::Creature(bool isWorldObject): Unit(isWorldObject), MapObject(),
 m_groupLootTimer(0), m_PlayerDamageReq(0),
 _pickpocketLootRestore(0), m_corpseRemoveTime(0), m_respawnTime(0),
-m_respawnDelay(300), m_corpseDelay(60), m_respawnradius(0.0f), m_boundaryCheckTime(2500), m_combatPulseTime(0), m_combatPulseDelay(0), m_reactState(REACT_AGGRESSIVE),
+m_respawnDelay(300), m_corpseDelay(60), m_respawnradius(0.0f), m_boundaryCheckTime(2500), m_combatPulseTime(0), m_combatPulseDelay(0), m_proximityPulseTime(1000), m_reactState(REACT_AGGRESSIVE),
 m_defaultMovementType(IDLE_MOTION_TYPE), m_spawnId(UI64LIT(0)), m_equipmentId(0), m_originalEquipmentId(0), m_AlreadyCallAssistance(false),
 m_AlreadySearchedAssistance(false), m_regenHealth(true), m_AI_locked(false), m_meleeDamageSchoolMask(SPELL_SCHOOL_MASK_NORMAL),
 m_originalEntry(0), m_homePosition(), m_transportHomePosition(), m_creatureInfo(nullptr), m_creatureData(nullptr), m_waypointID(0), m_path_id(0), m_formation(nullptr), m_focusSpell(nullptr), m_focusDelay(0)
@@ -597,6 +606,26 @@ void Creature::Update(uint32 diff)
                     m_boundaryCheckTime -= diff;
             }
 
+			if (m_proximityPulseTime > 0 && IsAIEnabled && !IsInEvadeMode() && !IsInCombat())
+			{
+				if (diff > m_proximityPulseTime)
+					m_proximityPulseTime = 0;
+				else
+					m_proximityPulseTime -= diff;
+
+				if (m_proximityPulseTime == 0)
+				{
+					if (!HasReactState(REACT_PASSIVE))
+					{
+						if (Unit* victim = SelectVictim())
+							if (!IsFocusing(nullptr, true))
+								i_AI->AttackStart(victim);
+					}
+
+					m_proximityPulseTime = 1 * IN_MILLISECONDS;
+				}
+			}
+
             // if periodic combat pulse is enabled and we are both in combat and in a dungeon, do this now
             if (m_combatPulseDelay > 0 && IsInCombat() && GetMap()->IsDungeon())
             {
@@ -944,12 +973,31 @@ void Creature::InitializeReactState()
 {
     if (IsTotem() || IsTrigger() || IsCritter() || IsSpiritService())
         SetReactState(REACT_PASSIVE);
-    /*
-    else if (IsCivilian())
-        SetReactState(REACT_DEFENSIVE);
-    */
     else
-        SetReactState(REACT_AGGRESSIVE);
+    {
+        uint32 time = 1 * IN_MILLISECONDS;
+
+        ReactStates reactState = REACT_AGGRESSIVE;
+        switch (reactState)
+        {
+            case REACT_AGGRESSIVE:
+            case REACT_ASSIST: // Verify this?
+            {
+                uint32 respawnDelay = 5 * IN_MILLISECONDS;
+                time += respawnDelay;
+                DelayedAggressionEvent* pEvent = new DelayedAggressionEvent(REACT_AGGRESSIVE, REACT_DEFENSIVE, *this);
+                SetReactState(REACT_DEFENSIVE);
+                m_Events.AddEvent(pEvent, m_Events.CalculateTime(respawnDelay));
+                break;
+            }
+            case REACT_PASSIVE:
+            case REACT_DEFENSIVE:
+            default:
+                break;
+        }
+
+        m_proximityPulseTime = time; // Respawn tick delay seems to be 6 seconds, but I'm pretty sure normal spawn is 1 second judging by how fast bosses attack after they spawn after having despawned, but trinitycore has no way of handling that since despawn & respawn = a respawn, while blizzard summon a new boss = spawn
+    }
 }
 
 bool Creature::isCanInteractWithBattleMaster(Player* player, bool msg) const

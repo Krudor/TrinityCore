@@ -485,9 +485,9 @@ void WorldSession::HandleAreaTriggerOpcode(WorldPackets::Misc::AreaTrigger& pack
         return;
     }
 
-    if (!player->IsInAreaTriggerRadius(atEntry))
+    if (packet.Entered && !player->IsInAreaTriggerRadius(atEntry))
     {
-        TC_LOG_DEBUG("network", "HandleAreaTriggerOpcode: Player '%s' (%s) too far, ignore Area Trigger ID: %u",
+        TC_LOG_DEBUG("network", "HandleAreaTriggerOpcode: Player '%s' (%s) entered areatrigger, but was too far away on server, ignore Area Trigger ID: %u",
             player->GetName().c_str(), player->GetGUID().ToString().c_str(), packet.AreaTriggerID);
         return;
     }
@@ -533,6 +533,11 @@ void WorldSession::HandleAreaTriggerOpcode(WorldPackets::Misc::AreaTrigger& pack
 
         return;
     }
+
+    if (InstanceMap* instanceMap = _player->GetMap()->ToInstanceMap())
+        if (Scenario* scenario = instanceMap->GetScenario())
+            if (ChallengeMode* challengeMode = scenario->GetChallengeMode())
+                challengeMode->HandleAreaTrigger(player, packet.AreaTriggerID, packet.Entered);
 
     if (Battleground* bg = player->GetBattleground())
         if (bg->GetStatus() == STATUS_IN_PROGRESS)
@@ -884,6 +889,18 @@ void WorldSession::HandleResetInstancesOpcode(WorldPackets::Instance::ResetInsta
     }
     else
         _player->ResetInstances(INSTANCE_RESET_ALL, false, false);
+}
+
+void WorldSession::HandleResetChallengeModeOpcode(WorldPackets::ChallengeMode::ResetChallengeMode& /*packet*/)
+{
+    if (Group* group = _player->GetGroup())
+        if (!group->IsLeader(_player->GetGUID()))
+            return;
+
+    if (InstanceMap* instanceMap = _player->GetMap()->ToInstanceMap())
+        if (Scenario* scenario = instanceMap->GetScenario())
+            if (ChallengeMode* challengeMode = scenario->GetChallengeMode())
+                challengeMode->Reset(_player);
 }
 
 void WorldSession::HandleSetDungeonDifficultyOpcode(WorldPackets::Misc::SetDungeonDifficulty& setDungeonDifficulty)

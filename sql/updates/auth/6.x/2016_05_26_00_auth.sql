@@ -1,0 +1,1 @@
+UPDATE `rbac_permissions` SET `name`='Command: go wsloc' WHERE `id`=379;

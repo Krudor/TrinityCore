@@ -176,6 +176,13 @@ namespace WorldPackets
         class CalendarComplain;
     }
 
+    namespace ChallengeMode
+    {
+        class ChallengeModeRequestLeaders;
+        class ChallengeModeRequestMapStats;
+        class ResetChallengeMode;
+    }
+
     namespace Character
     {
         struct CharacterCreateInfo;
@@ -1560,6 +1567,7 @@ class TC_GAME_API WorldSession
         void HandleTimeSyncResponse(WorldPackets::Misc::TimeSyncResponse& packet);
         void HandleWhoIsOpcode(WorldPackets::Who::WhoIsRequest& packet);
         void HandleResetInstancesOpcode(WorldPackets::Instance::ResetInstances& packet);
+        void HandleResetChallengeModeOpcode(WorldPackets::ChallengeMode::ResetChallengeMode& packet);
         void HandleInstanceLockResponse(WorldPackets::Instance::InstanceLockResponse& packet);
 
         // Looking for Dungeon/Raid
@@ -1702,6 +1710,9 @@ class TC_GAME_API WorldSession
         void HandleBattlePetSetFlags(WorldPackets::BattlePet::BattlePetSetFlags& battlePetSetFlags);
         void HandleBattlePetSummon(WorldPackets::BattlePet::BattlePetSummon& battlePetSummon);
         void HandleCageBattlePet(WorldPackets::BattlePet::CageBattlePet& cageBattlePet);
+
+        void HandleChallengeModeRequestLeaders(WorldPackets::ChallengeMode::ChallengeModeRequestLeaders& request);
+        void HandleChallengeModeRequestMapStats(WorldPackets::ChallengeMode::ChallengeModeRequestMapStats& request);
 
         // Warden
         void HandleWardenData(WorldPackets::Warden::WardenData& packet);

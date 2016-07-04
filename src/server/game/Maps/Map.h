@@ -31,6 +31,7 @@
 #include "DynamicTree.h"
 #include "GameObjectModel.h"
 #include "ObjectGuid.h"
+#include "Scenario.h"
 
 #include <bitset>
 #include <list>
@@ -54,6 +55,7 @@ class MapInstanced;
 class BattlegroundMap;
 class InstanceMap;
 class Transport;
+struct InstanceMapData;
 enum WeatherState : uint32;
 
 namespace Trinity { struct ObjectUpdater; }
@@ -765,9 +767,13 @@ class TC_GAME_API InstanceMap : public Map
         void RemovePlayerFromMap(Player*, bool) override;
         void Update(const uint32) override;
         void CreateInstanceData(bool load);
+        void SetScenario(Scenario* scenario) { i_scenario = scenario; }
+        void SetMapData(InstanceMapData const* data) { m_data = data; }
         bool Reset(uint8 method);
         uint32 GetScriptId() const { return i_script_id; }
         InstanceScript* GetInstanceScript() { return i_data; }
+        Scenario* GetScenario() { return i_scenario; }
+        InstanceMapData const* GetMapData() { return m_data; }
         void PermBindAllPlayers(Player* source);
         void UnloadAll() override;
         EnterState CannotEnter(Player* player) override;
@@ -785,7 +791,9 @@ class TC_GAME_API InstanceMap : public Map
         bool m_resetAfterUnload;
         bool m_unloadWhenEmpty;
         InstanceScript* i_data;
+        Scenario* i_scenario;
         uint32 i_script_id;
+        InstanceMapData const* m_data;
 };
 
 class TC_GAME_API BattlegroundMap : public Map

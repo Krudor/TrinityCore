@@ -695,4 +695,26 @@ void CharacterDatabaseConnection::DoPrepareStatements()
     PrepareStatement(CHAR_DEL_BLACKMARKET_AUCTIONS, "DELETE FROM blackmarket_auctions WHERE marketId = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_UPD_BLACKMARKET_AUCTIONS, "UPDATE blackmarket_auctions SET currentBid = ?, time = ?, numBids = ?, bidder = ? WHERE marketId = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_INS_BLACKMARKET_AUCTIONS, "INSERT INTO blackmarket_auctions (marketId, currentBid, time, numBids, bidder) VALUES (?, ?, ?, ? ,?)", CONNECTION_ASYNC);
+
+    // Scenario
+    PrepareStatement(CHAR_SEL_SCENARIO_INSTANCE_CRITERIA_FOR_INSTANCE, "SELECT criteria, counter, date FROM instance_scenario_progress WHERE id = ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_SEL_SCENARIO_INSTANCE_CRITERIA, "SELECT counter, date FROM instance_scenario_progress WHERE id = ? AND criteria = ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_INS_SCENARIO_INSTANCE_CRITERIA, "INSERT INTO instance_scenario_progress (id, criteria, counter, date) VALUES (?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_SCENARIO_INSTANCE_CRITERIA, "DELETE FROM instance_scenario_progress WHERE id = ? AND criteria = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_SCENARIO_INSTANCE_CRITERIA_FOR_INSTANCE, "DELETE FROM instance_scenario_progress WHERE id = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_SCENARIO_INSTANCE_CRITERIA, "UPDATE instance_scenario_progress SET counter = ?, date = ? WHERE id = ? AND criteria = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_INVALID_SCENARIO_INSTANCE_CRITERIA, "DELETE FROM instance_scenario_progress WHERE id = ? AND criteria = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_SCENARIO_INSTANCE_CRITERIA_BY_CRITERIA, "DELETE FROM instance_scenario_progress WHERE criteria = ?", CONNECTION_ASYNC);
+
+    // Challenge Mode
+    PrepareStatement(CHAR_SEL_CHALLENGE_MODE_GROUPS, "SELECT attemptId, mapId, completionTime, completionDate, medalEarned, guildId FROM challenge_mode_record", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_SEL_CHALLENGE_MODE_GROUP, "SELECT mapId, completionTime, completionDate, medalEarned, guildId FROM challenge_mode_record WHERE attemptId = ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_SEL_CHALLENGE_MODE_REALM_LEADERBOARDS, "SELECT attemptId, completionTime, completionDate, medalEarned, guildId FROM challenge_mode_record WHERE mapId = ? ORDER BY completionTime ASC LIMIT ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_SEL_CHALLENGE_MODE_GUILDS, "SELECT guildId FROM challenge_mode_record WHERE guildId > 0 GROUP BY guildId", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_SEL_CHALLENGE_MODE_GUILD_LEADERBOARDS, "SELECT attemptId, completionTime, completionDate, medalEarned FROM challenge_mode_record WHERE guildId = ? AND mapId = ?  ORDER BY completionTime ASC LIMIT ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_INS_CHALLENGE_MODE_GROUP, "INSERT INTO challenge_mode_record (attemptId, mapId, completionTime, completionDate, medalEarned, guildId) VALUES (?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
+    
+    PrepareStatement(CHAR_SEL_CHALLENGE_MODE_MEMBERS, "SELECT attemptId, playerGuid, specializationId FROM challenge_mode_record_members", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_SEL_CHALLENGE_MODE_MEMBERS_FOR_ATTEMPT, "SELECT playerGuid, specializationId FROM challenge_mode_record_members WHERE attemptId = ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_INS_CHALLENGE_MODE_MEMBERS, "INSERT INTO challenge_mode_record_members (attemptId, playerGuid, specializationId) VALUES (?, ?, ?)", CONNECTION_ASYNC);
 }

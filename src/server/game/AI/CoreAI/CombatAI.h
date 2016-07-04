@@ -46,7 +46,7 @@ class TC_GAME_API CombatAI : public CreatureAI
         void EnterCombat(Unit* who) override;
         void JustDied(Unit* killer) override;
         void UpdateAI(uint32 diff) override;
-        void SpellInterrupted(uint32 spellId, uint32 unTimeMs) override;
+        //void SpellInterrupted(uint32 spellId, uint32 unTimeMs) override;
 
         static int Permissible(Creature const* /*creature*/) { return PERMIT_BASE_NO; }
 

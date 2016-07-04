@@ -823,6 +823,72 @@ namespace WorldPackets
             int32 TransitionMilliseconds = 0;
             int32 OverrideLightID = 0;
         };
+
+        class StartTimer final : public WorldPackets::ServerPacket
+        {
+            public: StartTimer() : ServerPacket(SMSG_START_TIMER, 4 + 4 + 4) { }
+
+                enum TimerType : uint32
+                {
+                    Pvp             = 0,
+                    ChallengeMode   = 1
+                };
+
+                WorldPacket const* Write() override;
+
+                TimerType Type = (TimerType)0;
+                int32 Time = 0;
+                int32 TotalTime = 0;
+        };
+
+        class DisplayGameError final : public WorldPackets::ServerPacket
+        {
+            public:
+                DisplayGameError() : ServerPacket(SMSG_DISPLAY_GAME_ERROR, 4 + 4 + 4) { }
+
+                WorldPacket const* Write() override;
+
+                uint32 Error = 0;
+                uint32 Argument1 = 0;
+                uint32 Argument2 = 0;
+        };
+
+        struct ElapsedTimer
+        {
+            int32 TimerID = 0;
+            int32 CurrentDuration = 0;
+        };
+
+        class StartElapsedTimer final : public WorldPackets::ServerPacket
+        {
+            public:
+                StartElapsedTimer() : ServerPacket(SMSG_START_ELAPSED_TIMER, 4 + 4) { }
+
+                WorldPacket const* Write() override;
+
+                ElapsedTimer ElapsedTimer;
+        };
+
+        class StartElapsedTimers final : public WorldPackets::ServerPacket
+        {
+            public:
+                StartElapsedTimers() : ServerPacket(SMSG_START_ELAPSED_TIMERS) { }
+
+                WorldPacket const* Write() override;
+
+                std::list<ElapsedTimer> ElapsedTimers;
+        };
+
+        class StopElapsedTimer final : public WorldPackets::ServerPacket
+        {
+            public:
+                StopElapsedTimer() : ServerPacket(SMSG_STOP_ELAPSED_TIMER, 4 + 1) { }
+
+                WorldPacket const* Write() override;
+
+                int32 TimerID = 0;
+                bool KeepTimer = false;
+        };
     }
 }
 

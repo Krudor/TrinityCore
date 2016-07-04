@@ -22,6 +22,7 @@
 #include "ArenaTeamMgr.h"
 #include "BattlegroundMgr.h"
 #include "Chat.h"
+#include "ChallengeModeMgr.h"
 #include "Common.h"
 #include "DatabaseEnv.h"
 #include "DB2Structure.h"
@@ -5263,6 +5264,31 @@ InstanceTemplate const* ObjectMgr::GetInstanceTemplate(uint32 mapID)
     return NULL;
 }
 
+InstanceMapData const* ObjectMgr::GetInstanceMapData(uint32 mapId, uint8 difficulty)
+{
+    InstanceMapInfo::const_iterator itr = _instanceMapInfo.find(mapId);
+    if (itr == _instanceMapInfo.end())
+        return NULL;
+
+    std::unordered_map<uint8, InstanceMapData const*>::const_iterator diffItr = itr->second.find(difficulty);
+    if (diffItr == itr->second.end())
+        diffItr = itr->second.find(0);
+
+    if (diffItr == itr->second.end())
+        return NULL;
+
+    return diffItr->second;
+}
+
+ChallengeModeData const* ObjectMgr::GetChallengeModeData(uint32 challengeModeId)
+{
+    ChallengeModeInfo::const_iterator itr = _challengeModeInfo.find(challengeModeId);
+    if (itr == _challengeModeInfo.end())
+        return NULL;
+
+    return itr->second;
+}
+
 void ObjectMgr::LoadInstanceEncounters()
 {
     uint32 oldMSTime = getMSTime();
@@ -5355,6 +5381,124 @@ void ObjectMgr::LoadInstanceEncounters()
     } while (result->NextRow());
 
     TC_LOG_INFO("server.loading", ">> Loaded %u instance encounters in %u ms", count, GetMSTimeDiffToNow(oldMSTime));
+}
+
+void ObjectMgr::LoadInstanceMapData()
+{
+    uint32 oldMSTime = getMSTime();
+
+    //                                                 0        1            2        3          4
+    QueryResult result = WorldDatabase.Query("SELECT entry, difficulty, entranceId, exitId, graveyardId FROM instance_data ORDER BY entry, difficulty");
+    if (!result)
+    {
+        TC_LOG_ERROR("server.loading", ">> Loaded 0 map data records, table is empty!");
+        return;
+    }
+
+    uint32 count = 0;
+    do
+    {
+        Field* fields = result->Fetch();
+        uint32 entry = fields[0].GetUInt16();
+        uint8 difficulty = fields[1].GetUInt8();
+
+        // This requires the default difficulty (0) to be loaded before any other difficulties
+        InstanceMapData const* defaultData = GetInstanceMapData(entry, 0);
+
+        uint32 entranceId = fields[2].GetUInt16();
+        uint32 exitId = fields[3].GetUInt16();
+        uint32 graveyardId = fields[4].GetUInt16();
+
+        if (!sMapStore.LookupEntry(entry))
+        {
+            TC_LOG_ERROR("sql.sql", "Table `instance_data` has an invalid map id %u, skipped!", entry);
+            continue;
+        }
+
+        if (difficulty && !sDifficultyStore.LookupEntry(difficulty))
+        {
+            TC_LOG_ERROR("sql.sql", "Table `instance_data` has an invalid difficulty id %u, skipped!", difficulty);
+            continue;
+        }
+
+        if (!entranceId && defaultData && defaultData->EntranceId)
+            entranceId = defaultData->EntranceId;
+
+        if (entranceId && !sWorldSafeLocsStore.LookupEntry(entranceId))
+        {
+            TC_LOG_ERROR("sql.sql", "Table `instance_data` has an invalid entrance id %u, setting value to 0!", entranceId);
+            entranceId = 0;
+        }
+
+        if (!exitId && defaultData && defaultData->ExitId)
+            exitId = defaultData->ExitId;
+
+        if (exitId && !sWorldSafeLocsStore.LookupEntry(exitId))
+        {
+            TC_LOG_ERROR("sql.sql", "Table `instance_data` has an invalid exit id %u, setting value to 0!", exitId);
+            exitId = 0;
+        }
+
+        if (!graveyardId && defaultData && defaultData->GraveyardId)
+            graveyardId = defaultData->GraveyardId;
+
+        if (graveyardId && !sWorldSafeLocsStore.LookupEntry(graveyardId))
+        {
+            TC_LOG_ERROR("sql.sql", "Table `instance_data` has an invalid graveyard id %u, setting value to 0!", graveyardId);
+            graveyardId = 0;
+        }
+
+        InstanceMapData* data = new InstanceMapData();
+        data->EntranceId = entranceId;
+        data->ExitId = exitId;
+        data->GraveyardId = graveyardId;
+        _instanceMapInfo[entry][difficulty] = data;
+
+        ++count;
+    } while (result->NextRow());
+
+    TC_LOG_INFO("server.loading", ">> Loaded %u instance data in %u ms", count, GetMSTimeDiffToNow(oldMSTime));
+}
+
+void ObjectMgr::LoadChallengeModeData()
+{
+    uint32 oldMSTime = getMSTime();
+
+    //                                                 0          1
+    QueryResult result = WorldDatabase.Query("SELECT entry, outofboundsID FROM challenge_mode_data");
+    if (!result)
+    {
+        TC_LOG_ERROR("server.loading", ">> Loaded 0 challenge mode data records, table is empty!");
+        return;
+    }
+
+    uint32 count = 0;
+    do
+    {
+        Field* fields = result->Fetch();
+        uint32 entry = fields[0].GetUInt16();
+        uint32 outOfBoundsId = fields[1].GetUInt16();
+
+        if (!sMapChallengeModeStore.LookupEntry(entry))
+        {
+            TC_LOG_ERROR("sql.sql", "Table `challenge_mode_data` column 'entry' (%u) is not a valid MapChallengMode.db2 id, skipped!", entry);
+            continue;
+        }
+
+        if (outOfBoundsId && !sAreaTriggerStore.LookupEntry(outOfBoundsId))
+        {
+            TC_LOG_ERROR("sql.sql", "Table `challenge_mode_data` column 'outofboundsID' (%u) is not a valid AreaTrigger.dbc id, setting value to 0!", outOfBoundsId);
+            outOfBoundsId = 0;
+        }
+
+        ChallengeModeData* data = new ChallengeModeData();
+        data->OutOfBoundsId = outOfBoundsId;
+        _challengeModeInfo[entry] = data;
+
+        ++count;
+    } while (result->NextRow());
+
+    TC_LOG_INFO("server.loading", ">> Loaded %u challenge mode data in %u ms", count, GetMSTimeDiffToNow(oldMSTime));
 }
 
 NpcText const* ObjectMgr::GetNpcText(uint32 Text_ID) const
@@ -6409,6 +6553,10 @@ void ObjectMgr::SetHighestGuids()
     result = WorldDatabase.Query("SELECT MAX(guid) FROM gameobject");
     if (result)
         _gameObjectSpawnId = (*result)[0].GetUInt64() + 1;
+
+    result = CharacterDatabase.Query("SELECT MAX(attemptId) FROM challenge_mode_record");
+    if (result)
+        sChallengeModeMgr->SetNextAttemptId((*result)[0].GetUInt32() + 1);
 }
 
 uint32 ObjectMgr::GenerateAuctionID()

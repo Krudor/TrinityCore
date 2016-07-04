@@ -192,11 +192,12 @@ struct CriteriaEntry
         // CRITERIA_TYPE_KILLED_BY_CREATURE     = 20
         uint32 CreatureID;
 
-        // CRITERIA_TYPE_WIN_BG                 = 1
-        // CRITERIA_TYPE_COMPLETE_BATTLEGROUND  = 15
-        // CRITERIA_TYPE_DEATH_AT_MAP           = 16
-        // CRITERIA_TYPE_WIN_ARENA              = 32
-        // CRITERIA_TYPE_PLAY_ARENA             = 33
+        // CRITERIA_TYPE_WIN_BG                  = 1
+        // CRITERIA_TYPE_COMPLETE_BATTLEGROUND   = 15
+        // CRITERIA_TYPE_DEATH_AT_MAP            = 16
+        // CRITERIA_TYPE_WIN_ARENA               = 32
+        // CRITERIA_TYPE_PLAY_ARENA              = 33
+        // CRITERIA_TYPE_COMPLETE_CHALLENGE_MODE = 71
         uint32 MapID;
 
         // CRITERIA_TYPE_REACH_SKILL_LEVEL      = 7
@@ -900,6 +901,20 @@ struct MailTemplateEntry
     LocalizedString* Body;                                          // 1
 };
 
+struct MapChallengeModeEntry
+{
+    uint32 ID;
+    uint32 MapID;
+    uint32 UNK_1;
+    uint32 UNK_2; // When 6.X hit, the value for the season 1 challenge mode dungeons went from 0 to 2 and the new season has value 0. Perhaps it's a status for the challenge mode, 0 for no status, and 2 might stand for archived.
+    uint32 UNK_3; // Every entry has 3, 3 also stands for gold medal, perhaps max medal for entry?
+    uint32 BronzeTime;
+    uint32 SilverTime;
+    uint32 GoldTime;
+    uint32 UNK_4;
+    uint32 UNK_5;
+};
+
 struct ModifierTreeEntry
 {
     uint32 ID;                                                      // 0
@@ -1109,6 +1124,13 @@ struct ScalingStatDistributionEntry
     uint32 MinLevel;                                                // 1
     uint32 MaxLevel;                                                // 2
     uint32 ItemLevelCurveID;                                        // 3
+};
+
+struct ScenarioEntry
+{
+    uint32 ID;
+    char* Name_lang;
+    uint32 Flags;
 };
 
 struct SoundEntriesEntry

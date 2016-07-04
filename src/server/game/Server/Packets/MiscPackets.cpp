@@ -626,3 +626,57 @@ WorldPacket const* WorldPackets::Misc::OverrideLight::Write()
 
     return &_worldPacket;
 }
+
+WorldPacket const* WorldPackets::Misc::StartTimer::Write()
+{
+    _worldPacket << int32(Time);
+    _worldPacket << int32(TotalTime);
+    _worldPacket << uint32(Type);
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Misc::DisplayGameError::Write()
+{
+    _worldPacket << uint32(Error);
+    _worldPacket.WriteBit(Argument1 > 0);
+    _worldPacket.WriteBit(Argument2 > 0);
+
+    if (Argument1)
+        _worldPacket << uint32(Argument1);
+
+    if (Argument2)
+        _worldPacket << uint32(Argument2);
+
+    _worldPacket.FlushBits();
+    return &_worldPacket;
+}
+
+ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Misc::ElapsedTimer& elapsedTimer)
+{
+    data << elapsedTimer.TimerID;
+    data << elapsedTimer.CurrentDuration;
+    return data;
+}
+
+WorldPacket const* WorldPackets::Misc::StartElapsedTimer::Write()
+{
+    _worldPacket << ElapsedTimer;
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Misc::StartElapsedTimers::Write()
+{
+    _worldPacket << int32(ElapsedTimers.size());
+    for (auto elapsedTimer : ElapsedTimers)
+        _worldPacket << elapsedTimer;
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Misc::StopElapsedTimer::Write()
+{
+    _worldPacket << int32(TimerID);
+    _worldPacket.WriteBit(KeepTimer);
+    _worldPacket.FlushBits();
+    return &_worldPacket;
+}

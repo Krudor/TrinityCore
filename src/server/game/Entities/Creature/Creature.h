@@ -739,6 +739,7 @@ class TC_GAME_API Creature : public Unit, public GridObject<Creature>, public Ma
         uint32 m_boundaryCheckTime;                         // (msecs) remaining time for next evade boundary check
         uint32 m_combatPulseTime;                           // (msecs) remaining time for next zone-in-combat pulse
         uint32 m_combatPulseDelay;                          // (secs) how often the creature puts the entire zone in combat (only works in dungeons)
+		uint32 m_proximityPulseTime;						// (msecs) remaining time for next unit proximity check
 
         ReactStates m_reactState;                           // for AI, not charmInfo
         void RegenerateMana();
@@ -811,6 +812,18 @@ class TC_GAME_API ForcedDespawnDelayEvent : public BasicEvent
 
     private:
         Creature& m_owner;
+};
+
+class TC_GAME_API DelayedAggressionEvent : public BasicEvent
+{
+public:
+	DelayedAggressionEvent(ReactStates originalState, ReactStates newState, Creature& owner) : BasicEvent(), m_originalState(originalState), m_newState(newState), m_owner(owner) { }
+	bool Execute(uint64 e_time, uint32 p_time) override;
+
+private:
+	Creature& m_owner;
+	ReactStates m_originalState;
+    ReactStates m_newState;
 };
 
 #endif

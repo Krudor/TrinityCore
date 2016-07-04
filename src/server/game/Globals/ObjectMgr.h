@@ -697,6 +697,22 @@ typedef std::unordered_map<uint32, std::vector<uint32 /*id*/>> TerrainPhaseInfo;
 typedef std::unordered_map<uint32, std::vector<uint32>> TerrainUIPhaseInfo; // worldmaparea swap
 typedef std::unordered_map<uint32, std::vector<PhaseInfoStruct>> PhaseInfo; // phase
 
+struct InstanceMapData
+{
+    uint32 EntranceId;
+    uint32 ExitId;
+    uint32 GraveyardId;
+};
+
+typedef std::unordered_map<uint32, std::unordered_map<uint8, InstanceMapData const*>> InstanceMapInfo;
+
+struct ChallengeModeData
+{
+    uint32 OutOfBoundsId;
+};
+
+typedef std::unordered_map<uint32, ChallengeModeData const*> ChallengeModeInfo;
+
 class PlayerDumpReader;
 
 class TC_GAME_API ObjectMgr
@@ -759,6 +775,10 @@ class TC_GAME_API ObjectMgr
         ItemTemplateContainer const* GetItemTemplateStore() const { return &_itemTemplateStore; }
 
         InstanceTemplate const* GetInstanceTemplate(uint32 mapId);
+
+        InstanceMapData const* GetInstanceMapData(uint32 mapId, uint8 difficulty);
+
+        ChallengeModeData const* GetChallengeModeData(uint32 challengeModeId);
 
         PetLevelInfo const* GetPetLevelInfo(uint32 creature_id, uint8 level) const;
 
@@ -1018,6 +1038,8 @@ class TC_GAME_API ObjectMgr
         void LoadPointOfInterestLocales();
         void LoadInstanceTemplate();
         void LoadInstanceEncounters();
+        void LoadInstanceMapData();
+        void LoadChallengeModeData();
         void LoadMailLevelRewards();
         void LoadVehicleTemplateAccessories();
         void LoadVehicleAccessories();
@@ -1482,6 +1504,9 @@ class TC_GAME_API ObjectMgr
         TerrainPhaseInfo _terrainMapDefaultStore;
         TerrainUIPhaseInfo _terrainWorldMapStore;
         PhaseInfo _phases;
+
+        InstanceMapInfo _instanceMapInfo;
+        ChallengeModeInfo _challengeModeInfo;
 
     private:
         void LoadScripts(ScriptsType type);

@@ -32,6 +32,7 @@
 #include "TransportMgr.h"
 #include "Vehicle.h"
 #include "icecrown_citadel.h"
+#include <numeric>
 
 enum Texts
 {
@@ -831,6 +832,126 @@ class npc_gunship : public CreatureScript
 
             return GetIcecrownCitadelAI<npc_gunshipAI>(creature);
         }
+};
+
+enum Colors {
+    Red,
+    Blue,
+    Yellow,
+    Green,
+    Purple,
+
+    COLOR_MAX
+};
+
+enum Shapes {
+    Bomb,
+    Drum,
+    Sword,
+    Mantid,
+    Staff,
+
+    SHAPE_MAX
+};
+
+enum Spells2 {
+
+    SPELL_RED_SWORD     = 143605,
+    SPELL_PURPLE_SWORD  = 143606,
+    SPELL_BLUE_SWORD    = 143607,
+    SPELL_GREEN_SWORD   = 143608,
+    SPELL_YELLOW_SWORD  = 143609,
+
+    SPELL_RED_BOMB      = 143615,
+    SPELL_PURPLE_BOMB   = 143616,
+    SPELL_BLUE_BOMB     = 143617,
+    SPELL_GREEN_BOMB    = 143618,
+    SPELL_YELLOW_BOMB   = 143619,
+
+    SPELL_RED_DRUM      = 143610,
+    SPELL_PURPLE_DRUM   = 143611,
+    SPELL_BLUE_DRUM     = 143612,
+    SPELL_GREEN_DRUM    = 143613,
+    SPELL_YELLOW_DRUM   = 143614,
+
+    SPELL_RED_MANTID    = 143620,
+    SPELL_PURPLE_MANTID = 143621,
+    SPELL_BLUE_MANTID   = 143622,
+    SPELL_GREEN_MANTID  = 143623,
+    SPELL_YELLOW_MANTID = 143624,
+
+    SPELL_RED_STAFF     = 143627,
+    SPELL_PURPLE_STAFF  = 143628,
+    SPELL_BLUE_STAFF    = 143629,
+    SPELL_GREEN_STAFF   = 143630,
+    SPELL_YELLOW_STAFF  = 143631,
+};
+
+Spells2 Calculate[COLOR_MAX][SHAPE_MAX] =
+{
+    { SPELL_RED_BOMB,		SPELL_RED_DRUM,		SPELL_RED_SWORD,	SPELL_RED_MANTID,		SPELL_RED_STAFF },
+    { SPELL_BLUE_BOMB,		SPELL_BLUE_DRUM,	SPELL_BLUE_SWORD,	SPELL_BLUE_MANTID,		SPELL_BLUE_STAFF },
+    { SPELL_YELLOW_BOMB,	SPELL_YELLOW_DRUM,	SPELL_YELLOW_SWORD,	SPELL_YELLOW_MANTID,	SPELL_YELLOW_STAFF },
+    { SPELL_GREEN_BOMB,		SPELL_GREEN_DRUM,	SPELL_GREEN_SWORD,	SPELL_GREEN_MANTID,		SPELL_GREEN_STAFF },
+    { SPELL_PURPLE_BOMB,	SPELL_PURPLE_DRUM,	SPELL_PURPLE_SWORD, SPELL_PURPLE_MANTID,	SPELL_PURPLE_STAFF }
+};
+
+struct IyyokukCalculation
+{
+    IyyokukCalculation(uint32 SpellID, uint32 StackCount) : spellId(SpellID), stackCount(StackCount) { }
+
+    uint32 spellId;
+    uint32 stackCount;
+};
+
+class Something
+{
+    std::vector<IyyokukCalculation*> GetIyyokukCalculationCombinations(int playerCount)
+    {
+        int ColorCnt = GetColorCnt(playerCount, 3, 5);
+        int ShapeCnt = GetShapeCnt(playerCount, 3, 5);
+
+        std::vector<IyyokukCalculation*> combinations;
+        int randomNumberSequence[SHAPE_MAX][SHAPE_MAX];
+
+        for (int i = 0; i < ShapeCnt; i++)
+        {
+            for (int j = 0; j < ShapeCnt; j++)
+            {
+                randomNumberSequence[i][j] = (i + j) % ShapeCnt + 1;
+            }
+        }
+
+        std::array<int, SHAPE_MAX> sequenceAccessor;
+        std::iota(sequenceAccessor.begin(), sequenceAccessor.end(), 0);
+        Trinity::Containers::RandomShuffle(sequenceAccessor);
+
+        for (int i = 0; i < ColorCnt; i++)
+        {
+            for (int j = 0; j < ShapeCnt; j++)
+            {
+                combinations.push_back(new IyyokukCalculation(Calculate[i][j], sequenceAccessor[j]));
+            }
+        }
+
+        Trinity::Containers::RandomShuffle(combinations); // Shuffle now, not entirely sure how the list of targets are ordered
+        return combinations;
+    }
+
+    int GetColorCnt(int playerCount, int min, int max)
+    {
+        return BoundaryTransform(int(std::floor(std::round(std::sqrt(playerCount) * 10) / 10)), min, max);
+    }
+
+    int GetShapeCnt(int playerCount, int min, int max)
+    {
+        return BoundaryTransform(int(std::round(std::round(std::sqrt(playerCount) * 10) / 10)), min, max);
+    }
+
+    int BoundaryTransform(int num, int min, int max)
+    {
+        return std::min(std::max(num, min), max);
+    }
 };
 
 class npc_high_overlord_saurfang_igb : public CreatureScript

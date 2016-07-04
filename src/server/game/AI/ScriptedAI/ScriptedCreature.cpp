@@ -559,6 +559,24 @@ void BossAI::_DespawnAtEvade(uint32 delayToRespawn)
         instance->SetBossState(_bossId, FAIL);
 }
 
+// NewReset_BossAI - New version test of BossAI
+
+void NewReset_BossAI::Talk(uint8 id, WorldObject const* whisperTarget, std::chrono::seconds cooldown)
+{
+    if (_talkCooldownEvents.GetTimeUntilEvent(id) < std::chrono::duration_cast<std::chrono::milliseconds>(cooldown).count())
+        return;
+
+    BossAI::Talk(id, whisperTarget);
+    _talkCooldownEvents.ScheduleEvent(id, std::chrono::duration_cast<std::chrono::milliseconds>(cooldown).count());
+}
+
+void NewReset_BossAI::UpdateAI(uint32 diff)
+{
+    events.Update(diff);
+    while (uint32 eventId = events.ExecuteEvent()) { } // Discard executed events, we only need them for talk cooldowns
+    BossAI::UpdateAI(diff);
+}
+
 // WorldBossAI - for non-instanced bosses
 
 WorldBossAI::WorldBossAI(Creature* creature) :

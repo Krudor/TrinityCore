@@ -312,6 +312,9 @@ void HotfixDatabaseConnection::DoPrepareStatements()
     PrepareStatement(HOTFIX_SEL_MAIL_TEMPLATE, "SELECT ID, Body FROM mail_template ORDER BY ID DESC", CONNECTION_SYNCH);
     PREPARE_LOCALE_STMT(HOTFIX_SEL_MAIL_TEMPLATE, "SELECT ID, Body_lang FROM mail_template_locale WHERE locale = ?", CONNECTION_SYNCH);
 
+    PrepareStatement(HOTFIX_SEL_CHALLENGE_MODE, "SELECT ID, MapID, UNK_1, UNK_2, UNK_3, BronzeTime, SilverTime, GoldTime, UNK_4, UNK_5 "
+        "FROM map_challenge_mode ORDER BY ID DESC", CONNECTION_SYNCH);
+
     // ModifierTree.db2
     PrepareStatement(HOTFIX_SEL_MODIFIER_TREE, "SELECT ID, Type, Asset1, Asset2, Operator, Amount, Parent FROM modifier_tree ORDER BY ID DESC", CONNECTION_SYNCH);
 
@@ -386,6 +389,9 @@ void HotfixDatabaseConnection::DoPrepareStatements()
     // ScalingStatDistribution.db2
     PrepareStatement(HOTFIX_SEL_SCALING_STAT_DISTRIBUTION, "SELECT ID, MinLevel, MaxLevel, ItemLevelCurveID FROM scaling_stat_distribution"
         " ORDER BY ID DESC", CONNECTION_SYNCH);
+
+    // Scenario.db2
+    PrepareStatement(HOTFIX_SEL_SCENARIO, "SELECT ID, Name_lang, Flags FROM scenario ORDER BY ID DESC", CONNECTION_SYNCH);
 
     // SoundEntries.db2
     PrepareStatement(HOTFIX_SEL_SOUND_ENTRIES, "SELECT ID, SoundType, Name, FileDataID1, FileDataID2, FileDataID3, FileDataID4, FileDataID5, "

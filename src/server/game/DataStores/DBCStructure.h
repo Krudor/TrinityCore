@@ -955,6 +955,20 @@ struct RandomPropertiesPointsEntry
     uint32      UncommonPropertiesPoints[5];                // 11-15
 };
 
+struct ScenarioStepEntry
+{
+    uint32      ID;
+    uint32      CriteriaTreeID;
+    uint32      ScenarioID;
+    uint32      Step;
+    char*       Description;
+    char*       Name;
+    uint32      BonusStepFlag; // 0 = Not bonus step, 1 = Bonus step, 2 = Unknown
+    uint32      Unknown1;
+    uint32      Unknown2; // Points to the previous step on some steps
+    uint32      Unknown3;
+};
+
 struct SkillLineEntry
 {
     uint32      ID;                                         // 0        m_ID

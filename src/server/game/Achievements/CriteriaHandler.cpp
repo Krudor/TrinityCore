@@ -441,6 +441,9 @@ void CriteriaHandler::UpdateCriteria(CriteriaTypes type, uint64 miscValue1 /*= 0
 
         switch (type)
         {
+            case CRITERIA_TYPE_CAST_SPELL:
+                if (Scenario* scenario = dynamic_cast<Scenario*>(this))
+                    scenario->OnSpellCriteria(criteria, unit);
             // std. case: increment at 1
             case CRITERIA_TYPE_NUMBER_OF_TALENT_RESETS:
             case CRITERIA_TYPE_LOSE_DUEL:
@@ -462,7 +465,6 @@ void CriteriaHandler::UpdateCriteria(CriteriaTypes type, uint64 miscValue1 /*= 0
             case CRITERIA_TYPE_DEATHS_FROM:
             case CRITERIA_TYPE_BE_SPELL_TARGET:
             case CRITERIA_TYPE_BE_SPELL_TARGET2:
-            case CRITERIA_TYPE_CAST_SPELL:
             case CRITERIA_TYPE_CAST_SPELL2:
             case CRITERIA_TYPE_WIN_RATED_ARENA:
             case CRITERIA_TYPE_USE_ITEM:
@@ -480,6 +482,7 @@ void CriteriaHandler::UpdateCriteria(CriteriaTypes type, uint64 miscValue1 /*= 0
             case CRITERIA_TYPE_GET_KILLING_BLOWS:
             case CRITERIA_TYPE_HONORABLE_KILL_AT_AREA:
             case CRITERIA_TYPE_WIN_ARENA: // This also behaves like CRITERIA_TYPE_WIN_RATED_ARENA
+            case CRITERIA_TYPE_COMPLETE_CHALLENGE_MODE:
             case CRITERIA_TYPE_ON_LOGIN:
             case CRITERIA_TYPE_PLACE_GARRISON_BUILDING:
             case CRITERIA_TYPE_OWN_BATTLE_PET_COUNT:
@@ -937,6 +940,7 @@ bool CriteriaHandler::IsCompletedCriteriaTree(CriteriaTree const* tree)
 
     uint64 requiredCount = tree->Entry->Amount;
     uint64 completedCount = 0;
+    uint64 childrenCompletedCount = 0;
     uint32 op = tree->Entry->Operator;
     bool hasAll = true;
 
@@ -948,6 +952,13 @@ bool CriteriaHandler::IsCompletedCriteriaTree(CriteriaTree const* tree)
         else
             hasAll = false;
 
+        if (op & CRITERIA_TREE_OPERATOR_OR && tree->Children.empty())
+        {
+            CriteriaProgress const* progress = GetCriteriaProgress(node->Criteria);
+            if (progress)
+                childrenCompletedCount += progress->Counter;
+        }
+
         if (op & CRITERIA_TREE_OPERATOR_ANY && completedCount >= requiredCount)
         {
             if (!tree->Criteria)
@@ -956,6 +967,9 @@ bool CriteriaHandler::IsCompletedCriteriaTree(CriteriaTree const* tree)
             break;
         }
     }
+
+    if (op & CRITERIA_TREE_OPERATOR_OR && childrenCompletedCount >= requiredCount)
+        return true;
 
     if (op & CRITERIA_TREE_OPERATOR_ANY && completedCount < requiredCount)
         return false;
@@ -1030,6 +1044,7 @@ bool CriteriaHandler::IsCompletedCriteria(Criteria const* criteria, uint64 requi
         case CRITERIA_TYPE_USE_LFD_TO_GROUP_WITH_PLAYERS:
         case CRITERIA_TYPE_GET_KILLING_BLOWS:
         case CRITERIA_TYPE_CURRENCY:
+        case CRITERIA_TYPE_COMPLETE_CHALLENGE_MODE:
         case CRITERIA_TYPE_PLACE_GARRISON_BUILDING:
         case CRITERIA_TYPE_OWN_BATTLE_PET_COUNT:
             return progress->Counter >= requiredAmount;
@@ -1438,6 +1453,10 @@ bool CriteriaHandler::RequirementsSatisfied(Criteria const* criteria, uint64 mis
             if (miscValue1 != criteria->Entry->Asset.GarrBuildingID)
                 return false;
             break;
+        case CRITERIA_TYPE_COMPLETE_CHALLENGE_MODE:
+            if (!miscValue1 || criteria->Entry->Asset.MapID != referencePlayer->GetMapId())
+                return false;
+            break;
         default:
             break;
     }
@@ -1582,6 +1601,10 @@ bool CriteriaHandler::AdditionalRequirementsSatisfied(ModifierTreeNode const* tr
             break;
         case CRITERIA_ADDITIONAL_CONDITION_TARGET_HEALTH_PERCENT_BELOW: // 46
             if (!unit || unit->GetHealthPct() >= reqValue)
+                return false;
+            break;
+        case CRITERIA_ADDITIONAL_CONDITION_CHALLENGE_MODE_MEDAL: // 71
+            if (miscValue1 < reqValue)
                 return false;
             break;
         case CRITERIA_ADDITIONAL_CONDITION_BATTLE_PET_SPECIES: // 91
@@ -1767,6 +1790,8 @@ char const* CriteriaMgr::GetCriteriaTypeString(CriteriaTypes type)
             return "BE_SPELL_TARGET2";
         case CRITERIA_TYPE_SPECIAL_PVP_KILL:
             return "SPECIAL_PVP_KILL";
+        case CRITERIA_TYPE_COMPLETE_CHALLENGE_MODE:
+            return "COMPLETE_CHALLENGE_MODE";
         case CRITERIA_TYPE_FISH_IN_GAMEOBJECT:
             return "FISH_IN_GAMEOBJECT";
         case CRITERIA_TYPE_ON_LOGIN:
@@ -2029,9 +2054,9 @@ void CriteriaMgr::LoadCriteriaList()
             achievementCriteriaTreeIds[achievement->CriteriaTree] = achievement;
 
     std::unordered_map<uint32 /*criteriaTreeID*/, ScenarioStepEntry const*> scenarioCriteriaTreeIds;
-    //for (ScenarioStepEntry const* scenarioStep : sScenarioStepStore)
-    //    if (scenarioStep->CriteriaTreeID)
-    //        scenarioCriteriaTreeIds[scenarioStep->CriteriaTreeID] = scenarioStep;
+    for (ScenarioStepEntry const* scenarioStep : sScenarioStepStore)
+        if (scenarioStep->CriteriaTreeID)
+            scenarioCriteriaTreeIds[scenarioStep->CriteriaTreeID] = scenarioStep;
 
     // Load criteria tree nodes
     for (CriteriaTreeEntry const* tree : sCriteriaTreeStore)

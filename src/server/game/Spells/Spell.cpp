@@ -2485,9 +2485,8 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
     if (spellHitTarget)
     {
         //AI functions
-        if (spellHitTarget->GetTypeId() == TYPEID_UNIT)
-            if (spellHitTarget->ToCreature()->IsAIEnabled)
-                spellHitTarget->ToCreature()->AI()->SpellHit(m_caster, m_spellInfo);
+        if (spellHitTarget->GetTypeId() == TYPEID_UNIT && spellHitTarget->ToCreature()->IsAIEnabled)
+            spellHitTarget->ToCreature()->AI()->SpellHit(m_caster, m_spellInfo);
 
         if (m_caster->GetTypeId() == TYPEID_UNIT && m_caster->ToCreature()->IsAIEnabled)
             m_caster->ToCreature()->AI()->SpellHitTarget(spellHitTarget, m_spellInfo);
@@ -3322,6 +3321,9 @@ void Spell::cast(bool skipCheck)
     }
 
     CallScriptAfterCastHandlers();
+
+    if (m_caster->GetTypeId() == TYPEID_UNIT && m_caster->ToCreature()->IsAIEnabled)
+        m_caster->ToCreature()->AI()->SpellCast(m_spellInfo);
 
     if (const std::vector<int32> *spell_triggered = sSpellMgr->GetSpellLinked(m_spellInfo->Id))
     {

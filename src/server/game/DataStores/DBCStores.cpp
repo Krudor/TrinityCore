@@ -123,6 +123,8 @@ DBCStorage<QuestFactionRewEntry>            sQuestFactionRewardStore(QuestFactio
 
 DBCStorage<RandomPropertiesPointsEntry>     sRandomPropertiesPointsStore(RandPropPointsfmt);
 
+DBCStorage<ScenarioStepEntry>               sScenarioStepStore(ScenarioStepfmt);
+
 DBCStorage<SkillLineAbilityEntry>           sSkillLineAbilityStore(SkillLineAbilityfmt);
 DBCStorage<SkillLineEntry>                  sSkillLineStore(SkillLinefmt);
 DBCStorage<SkillRaceClassInfoEntry>         sSkillRaceClassInfoStore(SkillRaceClassInfofmt);
@@ -353,6 +355,7 @@ void LoadDBCStores(const std::string& dataPath, uint32 defaultLocale)
     LOAD_DBC(sPvpDifficultyStore, "PvpDifficulty.dbc");//20444
     LOAD_DBC(sQuestFactionRewardStore, "QuestFactionReward.dbc");//20444
     LOAD_DBC(sRandomPropertiesPointsStore, "RandPropPoints.dbc");//20444
+    LOAD_DBC(sScenarioStepStore, "ScenarioStep.dbc");//20444
     LOAD_DBC(sSkillLineAbilityStore, "SkillLineAbility.dbc");//20444
     LOAD_DBC(sSkillLineStore, "SkillLine.dbc");//20444
     LOAD_DBC(sSkillRaceClassInfoStore, "SkillRaceClassInfo.dbc");//20444

@@ -472,14 +472,14 @@ inline void Battleground::_ProcessJoin(uint32 diff)
     {
         uint32 countdownMaxForBGType = isArena() ? ARENA_COUNTDOWN_MAX : BATTLEGROUND_COUNTDOWN_MAX;
 
-        WorldPacket data(SMSG_START_TIMER, 4+4+4);
-        data << uint32(0); // unk
-        data << uint32(countdownMaxForBGType - (GetElapsedTime() / 1000));
-        data << uint32(countdownMaxForBGType);
+        WorldPackets::Misc::StartTimer timer;
+        timer.Type = timer.Pvp;
+        timer.Time = countdownMaxForBGType - (GetElapsedTime() / 1000);
+        timer.TotalTime = countdownMaxForBGType;
 
         for (BattlegroundPlayerMap::const_iterator itr = GetPlayers().begin(); itr != GetPlayers().end(); ++itr)
             if (Player* player = ObjectAccessor::FindPlayer(itr->first))
-                player->GetSession()->SendPacket(&data);
+                player->GetSession()->SendPacket(timer.Write());
 
         m_CountdownTimer = 0;
     }
@@ -1130,11 +1130,12 @@ void Battleground::AddPlayer(Player* player)
             player->CastSpell(player, SPELL_PREPARATION, true);   // reduces all mana cost of spells.
 
             int32 countdownMaxForBGType = isArena() ? ARENA_COUNTDOWN_MAX : BATTLEGROUND_COUNTDOWN_MAX;
-            WorldPacket data(SMSG_START_TIMER, 4+4+4);
-            data << uint32(0); // unk
-            data << uint32(countdownMaxForBGType - (GetElapsedTime() / 1000));
-            data << uint32(countdownMaxForBGType);
-            player->GetSession()->SendPacket(&data);
+            
+            WorldPackets::Misc::StartTimer timer;
+            timer.Type = timer.Pvp;
+            timer.Time = countdownMaxForBGType - (GetElapsedTime() / 1000);
+            timer.TotalTime = countdownMaxForBGType;
+            player->GetSession()->SendPacket(timer.Write());
         }
     }
 

@@ -27,6 +27,7 @@
 #include "Group.h"
 #include "Player.h"
 #include "GarrisonMap.h"
+#include "ScenarioMgr.h"
 
 MapInstanced::MapInstanced(uint32 id, time_t expiry) : Map(id, expiry, 0, DIFFICULTY_NORMAL)
 {
@@ -69,6 +70,10 @@ void MapInstanced::Update(const uint32 t)
                 sMapMgr->GetMapUpdater()->schedule_update(*i->second, t);
             else
                 i->second->Update(t);
+
+            if (InstanceMap* instanceMap = dynamic_cast<InstanceMap*>(i->second))
+                if (Scenario* scenario = instanceMap->GetScenario())
+                    scenario->Update(t);
             ++i;
         }
     }
@@ -178,7 +183,7 @@ Map* MapInstanced::CreateInstanceForPlayer(const uint32 mapId, Player* player, u
             map = FindInstanceMap(newInstanceId);
             // it is possible that the save exists but the map doesn't
             if (!map)
-                map = CreateInstance(newInstanceId, pSave, pSave->GetDifficultyID());
+                map = CreateInstance(newInstanceId, pSave, pSave->GetDifficultyID(), player);
         }
         else
         {
@@ -191,7 +196,7 @@ Map* MapInstanced::CreateInstanceForPlayer(const uint32 mapId, Player* player, u
             //ASSERT(!FindInstanceMap(NewInstanceId));
             map = FindInstanceMap(newInstanceId);
             if (!map)
-                map = CreateInstance(newInstanceId, NULL, diff);
+                map = CreateInstance(newInstanceId, NULL, diff, player);
         }
     }
     else
@@ -205,7 +210,7 @@ Map* MapInstanced::CreateInstanceForPlayer(const uint32 mapId, Player* player, u
     return map;
 }
 
-InstanceMap* MapInstanced::CreateInstance(uint32 InstanceId, InstanceSave* save, Difficulty difficulty)
+InstanceMap* MapInstanced::CreateInstance(uint32 InstanceId, InstanceSave* save, Difficulty difficulty, Player* triggerPlayer)
 {
     // load/create a map
     std::lock_guard<std::mutex> lock(_mapLock);
@@ -237,6 +242,8 @@ InstanceMap* MapInstanced::CreateInstance(uint32 InstanceId, InstanceSave* save,
 
     bool load_data = save != NULL;
     map->CreateInstanceData(load_data);
+    map->SetScenario(sScenarioMgr->CreateScenario(map, triggerPlayer));
+    map->SetMapData(sObjectMgr->GetInstanceMapData(GetId(), difficulty));
 
     if (sWorld->getBoolConfig(CONFIG_INSTANCEMAP_LOAD_GRIDS))
         map->LoadAllCells();

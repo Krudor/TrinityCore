@@ -79,6 +79,7 @@
 #include "QuestPackets.h"
 #include "ReputationMgr.h"
 #include "GitRevision.h"
+#include "Scenario.h"
 #include "SkillDiscovery.h"
 #include "SocialMgr.h"
 #include "Spell.h"
@@ -1645,7 +1646,7 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
                 WorldPackets::Movement::NewWorld packet;
                 packet.MapID = mapid;
                 packet.Pos = static_cast<Position>(m_teleport_dest);
-                packet.Reason = !(options & TELE_TO_SEAMLESS) ? NEW_WORLD_NORMAL : NEW_WORLD_SEAMLESS;
+                packet.Reason = !(options & TELE_TO_SEAMLESS) ? 4 : NEW_WORLD_SEAMLESS; // EDIT
                 SendDirectMessage(packet.Write());
             }
 
@@ -4595,15 +4596,6 @@ void Player::RepopAtGraveyard()
     // note: this can be called also when the player is alive
     // for example from WorldSession::HandleMovementOpcodes
 
-    AreaTableEntry const* zone = sAreaTableStore.LookupEntry(GetAreaId());
-
-    // Such zones are considered unreachable as a ghost and the player must be automatically revived
-    if ((!IsAlive() && zone && zone->Flags[0] & AREA_FLAG_NEED_FLY) || GetTransport() || GetPositionZ() < GetMap()->GetMinHeight(GetPositionX(), GetPositionY()))
-    {
-        ResurrectPlayer(0.5f);
-        SpawnCorpseBones();
-    }
-
     WorldSafeLocsEntry const* ClosestGrave;
 
     // Special handle for battleground maps
@@ -4613,8 +4605,21 @@ void Player::RepopAtGraveyard()
     {
         if (Battlefield* bf = sBattlefieldMgr->GetBattlefieldToZoneId(GetZoneId()))
             ClosestGrave = bf->GetClosestGraveYard(this);
-        else
+        else if (InstanceMap* instanceMap = GetMap()->ToInstanceMap())
+            if (InstanceMapData const* mapData = instanceMap->GetMapData())
+                ClosestGrave = sWorldSafeLocsStore.LookupEntry(mapData->GraveyardId);
+        
+        if (!ClosestGrave)
             ClosestGrave = sObjectMgr->GetClosestGraveYard(GetPositionX(), GetPositionY(), GetPositionZ(), GetMapId(), GetTeam());
+    }
+
+    AreaTableEntry const* zone = sAreaTableStore.LookupEntry(GetAreaId());
+
+    // Such zones are considered unreachable as a ghost and the player must be automatically revived
+    if ((!IsAlive() && zone && zone->Flags[0] & AREA_FLAG_NEED_FLY) || GetTransport() || GetPositionZ() < GetMap()->GetMinHeight(GetPositionX(), GetPositionY()) || (ClosestGrave->MapID == GetMapId() && GetMap()->Instanceable()))
+    {
+        ResurrectPlayer(0.5f);
+        SpawnCorpseBones();
     }
 
     // stop countdown until repop
@@ -22286,6 +22291,10 @@ void Player::SendInitialPacketsBeforeAddToMap()
     // worldServerInfo.XRealmPvpAlert;  /// @todo
     SendDirectMessage(worldServerInfo.Write());
 
+    if (InstanceMap* instanceMap = GetMap()->ToInstanceMap())
+        if (Scenario* scenario = instanceMap->GetScenario())
+            scenario->SendScenarioState(this);
+
     // SMSG_ACCOUNT_MOUNT_UPDATE
     // SMSG_ACCOUNT_TOYS_UPDATE
     WorldPackets::Toy::AccountToysUpdate toysUpdate;
@@ -24656,16 +24665,19 @@ void Player::ResetCriteria(CriteriaTypes type, uint64 miscValue1 /*= 0*/, uint64
 void Player::UpdateCriteria(CriteriaTypes type, uint64 miscValue1 /*= 0*/, uint64 miscValue2 /*= 0*/, uint64 miscValue3 /*= 0*/, Unit* unit /*= NULL*/)
 {
     m_achievementMgr->UpdateCriteria(type, miscValue1, miscValue2, miscValue3, unit, this);
-    Guild* guild = sGuildMgr->GetGuildById(GetGuildId());
-    if (!guild)
-        return;
-
     // Update only individual achievement criteria here, otherwise we may get multiple updates
     // from a single boss kill
     if (CriteriaMgr::IsGroupCriteriaType(type))
         return;
 
-    guild->UpdateCriteria(type, miscValue1, miscValue2, miscValue3, unit, this);
+    Guild* guild = sGuildMgr->GetGuildById(GetGuildId());
+    if (guild)
+        guild->UpdateCriteria(type, miscValue1, miscValue2, miscValue3, unit, this);
+
+    if (IsInWorld())
+        if (InstanceMap* instance = GetMap()->ToInstanceMap())
+            if (Scenario* scenario = instance->GetScenario())
+                scenario->UpdateCriteria(type, miscValue1, miscValue2, miscValue3, unit, this);
 }
 
 void Player::CompletedAchievement(AchievementEntry const* entry)
