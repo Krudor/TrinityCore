@@ -1646,7 +1646,7 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
                 WorldPackets::Movement::NewWorld packet;
                 packet.MapID = mapid;
                 packet.Pos = static_cast<Position>(m_teleport_dest);
-                packet.Reason = !(options & TELE_TO_SEAMLESS) ? 4 : NEW_WORLD_SEAMLESS; // EDIT
+                packet.Reason = !(options & TELE_TO_SEAMLESS) ? NEW_WORLD_NORMAL : NEW_WORLD_SEAMLESS;
                 SendDirectMessage(packet.Write());
             }
 
