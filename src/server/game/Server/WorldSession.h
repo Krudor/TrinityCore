@@ -378,6 +378,7 @@ namespace WorldPackets
         class CancelTempEnchantment;
         class TransmogrifyItems;
         class UseCritterItem;
+        class UpgradeItem;
         class SocketGems;
         struct ItemInstance;
     }
@@ -449,6 +450,7 @@ namespace WorldPackets
         class MoveTimeSkipped;
         class SummonResponse;
         class MoveSplineDone;
+        class SuspendTokenResponse;
     }
 
     namespace NPC
@@ -513,6 +515,7 @@ namespace WorldPackets
         class PetAction;
         class PetCancelAura;
         class PetSetAction;
+        class LearnPetSpecializationGroup;
     }
 
     namespace Petition
@@ -1249,6 +1252,7 @@ class TC_GAME_API WorldSession
 
         void HandleMoveWorldportAckOpcode(WorldPackets::Movement::WorldPortResponse& packet);
         void HandleMoveWorldportAckOpcode();                // for server-side calls
+        void HandleSuspendTokenResponse(WorldPackets::Movement::SuspendTokenResponse& suspendTokenResponse);
 
         void HandleMovementOpcodes(WorldPackets::Movement::ClientPlayerMovement& packet);
         void HandleSetActiveMoverOpcode(WorldPackets::Movement::SetActiveMover& packet);
@@ -1430,6 +1434,7 @@ class TC_GAME_API WorldSession
         void HandleBuybackItem(WorldPackets::Item::BuyBackItem& packet);
         void HandleWrapItem(WorldPackets::Item::WrapItem& packet);
         void HandleUseCritterItem(WorldPackets::Item::UseCritterItem& packet);
+        void HandleUpgradeItem(WorldPackets::Item::UpgradeItem& packet);
 
         void HandleAttackSwingOpcode(WorldPackets::Combat::AttackSwing& packet);
         void HandleAttackStopOpcode(WorldPackets::Combat::AttackStop& packet);
@@ -1523,6 +1528,7 @@ class TC_GAME_API WorldSession
         void HandlePetCancelAuraOpcode(WorldPackets::Spells::PetCancelAura& packet);
         void HandlePetSpellAutocastOpcode(WorldPackets::Pet::PetSpellAutocast& packet);
         void HandlePetCastSpellOpcode(WorldPackets::Spells::PetCastSpell& petCastSpell);
+        void HandlePetSetSpecializationOpcode(WorldPackets::Pet::LearnPetSpecializationGroup& learnPetSpecializationGroup);
 
         void HandleSetActionBarToggles(WorldPackets::Character::SetActionBarToggles& packet);
 

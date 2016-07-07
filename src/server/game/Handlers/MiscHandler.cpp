@@ -540,8 +540,7 @@ void WorldSession::HandleAreaTriggerOpcode(WorldPackets::Misc::AreaTrigger& pack
                 challengeMode->HandleAreaTrigger(player, packet.AreaTriggerID, packet.Entered);
 
     if (Battleground* bg = player->GetBattleground())
-        if (bg->GetStatus() == STATUS_IN_PROGRESS)
-            bg->HandleAreaTrigger(player, packet.AreaTriggerID, packet.Entered);
+        bg->HandleAreaTrigger(player, packet.AreaTriggerID, packet.Entered);
 
     if (OutdoorPvP* pvp = player->GetOutdoorPvP())
         if (pvp->HandleAreaTrigger(_player, packet.AreaTriggerID, packet.Entered))

@@ -1199,12 +1199,7 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         void AddToWorld() override;
         void RemoveFromWorld() override;
 
-        void SetObjectScale(float scale) override
-        {
-            Unit::SetObjectScale(scale);
-            SetFloatValue(UNIT_FIELD_BOUNDINGRADIUS, scale * DEFAULT_WORLD_OBJECT_SIZE);
-            SetFloatValue(UNIT_FIELD_COMBATREACH, scale * DEFAULT_COMBAT_REACH);
-        }
+        void SetObjectScale(float scale) override;
 
         bool TeleportTo(uint32 mapid, float x, float y, float z, float orientation, uint32 options = 0);
         bool TeleportTo(WorldLocation const &loc, uint32 options = 0);
@@ -1749,8 +1744,8 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         void RemoveSpecializationSpells();
         void SendSpellCategoryCooldowns() const;
 
-        void SetReputation(uint32 factionentry, uint32 value);
-        uint32 GetReputation(uint32 factionentry) const;
+        void SetReputation(uint32 factionentry, int32 value);
+        int32 GetReputation(uint32 factionentry) const;
         std::string GetGuildName() const;
 
         // Loot Spec
@@ -2457,10 +2452,6 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
 
         void ValidateMovementInfo(MovementInfo* mi);
 
-        /*! These methods send different packets to the client in apply and unapply case.
-            These methods are only sent to the current unit.
-        */
-        void SendMovementSetCanTransitionBetweenSwimAndFly(bool apply);
         void SendMovementSetCollisionHeight(float height);
 
         bool CanFly() const override { return m_movementInfo.HasMovementFlag(MOVEMENTFLAG_CAN_FLY); }
