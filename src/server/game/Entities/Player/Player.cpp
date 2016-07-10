@@ -4607,8 +4607,7 @@ void Player::RepopAtGraveyard()
         if (Battlefield* bf = sBattlefieldMgr->GetBattlefieldToZoneId(GetZoneId()))
             ClosestGrave = bf->GetClosestGraveYard(this);
         else if (InstanceMap* instanceMap = GetMap()->ToInstanceMap())
-            if (InstanceMapData const* mapData = instanceMap->GetMapData())
-                ClosestGrave = sWorldSafeLocsStore.LookupEntry(mapData->GraveyardId);
+            ClosestGrave = instanceMap->GetGraveyardPos();
         
         if (!ClosestGrave)
             ClosestGrave = sObjectMgr->GetClosestGraveYard(GetPositionX(), GetPositionY(), GetPositionZ(), GetMapId(), GetTeam());
@@ -18125,6 +18124,12 @@ void Player::_LoadBoundInstances(PreparedQueryResult result)
                         GetName().c_str(), GetGUID().ToString().c_str(), group->GetGUID().ToString().c_str(), mapId, mapname.c_str(), instanceId, difficulty);
                     deleteInstance = true;
                 }
+            }
+
+            if (entranceId && !sWorldSafeLocsStore.LookupEntry(entranceId))
+            {
+                TC_LOG_ERROR("entities.player", "Player::_LoadBoundInstances: map %d (%s), %d, %d has an invalid entrance location id, setting value to 0!");
+                entranceId = 0;
             }
 
             if (deleteInstance)

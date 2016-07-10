@@ -1769,9 +1769,6 @@ void World::SetInitialWorldSettings()
     TC_LOG_INFO("server.loading", "Loading Instance map data...");
     sObjectMgr->LoadInstanceMapData();
 
-    TC_LOG_INFO("server.loading", "Loading challenge mode data...");
-    sObjectMgr->LoadChallengeModeData();
-
     TC_LOG_INFO("server.loading", "Loading LFG rewards...");
     sLFGMgr->LoadRewards();
 
@@ -1964,8 +1961,11 @@ void World::SetInitialWorldSettings()
     sScenarioMgr->LoadDBCData();
     sScenarioMgr->LoadDBData();
 
-    TC_LOG_INFO("server.loading", "Loading challenge mode leaderboards");
-    sChallengeModeMgr->LoadChallengeModes();
+    TC_LOG_INFO("server.loading", "Loading challenge mode records...");
+    sChallengeModeMgr->LoadChallengeModeRecords();
+
+    TC_LOG_INFO("server.loading", "Loading challenge mode data...");
+    sChallengeModeMgr->LoadChallengeModeData();
 
     ///- Handle outdated emails (delete/return)
     TC_LOG_INFO("server.loading", "Returning old mails...");

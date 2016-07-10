@@ -1,6 +1,18 @@
 #include "ScriptMgr.h"
 #include "ScriptedCreature.h"
 #include "temple_of_the_jade_serpent.h"
+#include <ChallengeModeMgr.h>
+
+class ChallengeModeRealmBestTitleScript : public PlayerScript
+{
+    public:
+        ChallengeModeRealmBestTitleScript() : PlayerScript("ChallengeModeRealmBestTitleScript") { }
+
+        void OnLogin(Player* player, bool /*firstLogin*/) override
+        {
+            sChallengeModeMgr->UpdateRealmBestTitles(player);
+        }
+};
 
 class TerraceFighterPredicate
 {
@@ -147,6 +159,8 @@ public:
 
 void AddSC_temple_of_the_jade_serpent()
 {
+    new ChallengeModeRealmBestTitleScript();
+
 	new npc_totjs_serpent_warrior();
 	new npc_totjs_lesser_sha_terrace();
 	new npc_totjs_minion_of_doubt_terrace();

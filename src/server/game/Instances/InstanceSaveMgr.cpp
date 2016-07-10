@@ -203,11 +203,13 @@ void InstanceSave::SaveToDB()
     if (map)
     {
         ASSERT(map->IsDungeon());
-        if (InstanceScript* instanceScript = ((InstanceMap*)map)->GetInstanceScript())
+        if (InstanceScript* instanceScript = dynamic_cast<InstanceMap*>(map)->GetInstanceScript())
         {
             data = instanceScript->GetSaveData();
             completedEncounters = instanceScript->GetCompletedEncounterMask();
-            m_entranceId = instanceScript->GetEntranceLocation();
+            WorldSafeLocsEntry const* entrance = instanceScript->GetPersistentEntranceLocation();
+            if (entrance)
+                m_entranceId = entrance->ID;
         }
 
         if (InstanceMap* instanceMap = dynamic_cast<InstanceMap*>(map))

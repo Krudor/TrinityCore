@@ -181,6 +181,8 @@ namespace WorldPackets
         class ChallengeModeRequestLeaders;
         class ChallengeModeRequestMapStats;
         class ResetChallengeMode;
+        class GetChallengeModeRewards;
+        class ChallengeModeRewards;
     }
 
     namespace Character
@@ -1573,7 +1575,6 @@ class TC_GAME_API WorldSession
         void HandleTimeSyncResponse(WorldPackets::Misc::TimeSyncResponse& packet);
         void HandleWhoIsOpcode(WorldPackets::Who::WhoIsRequest& packet);
         void HandleResetInstancesOpcode(WorldPackets::Instance::ResetInstances& packet);
-        void HandleResetChallengeModeOpcode(WorldPackets::ChallengeMode::ResetChallengeMode& packet);
         void HandleInstanceLockResponse(WorldPackets::Instance::InstanceLockResponse& packet);
 
         // Looking for Dungeon/Raid
@@ -1717,8 +1718,11 @@ class TC_GAME_API WorldSession
         void HandleBattlePetSummon(WorldPackets::BattlePet::BattlePetSummon& battlePetSummon);
         void HandleCageBattlePet(WorldPackets::BattlePet::CageBattlePet& cageBattlePet);
 
+        // Challenge Mode
         void HandleChallengeModeRequestLeaders(WorldPackets::ChallengeMode::ChallengeModeRequestLeaders& request);
         void HandleChallengeModeRequestMapStats(WorldPackets::ChallengeMode::ChallengeModeRequestMapStats& request);
+        void HandleResetChallengeModeOpcode(WorldPackets::ChallengeMode::ResetChallengeMode& packet);
+        void HandleGetChallengeModeRewards(WorldPackets::ChallengeMode::GetChallengeModeRewards& request);
 
         // Warden
         void HandleWardenData(WorldPackets::Warden::WardenData& packet);

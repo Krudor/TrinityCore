@@ -55,7 +55,6 @@ class MapInstanced;
 class BattlegroundMap;
 class InstanceMap;
 class Transport;
-struct InstanceMapData;
 enum WeatherState : uint32;
 
 namespace Trinity { struct ObjectUpdater; }
@@ -227,6 +226,16 @@ struct InstanceTemplate
     uint32 ScriptId;
     bool AllowMount;
 };
+
+struct InstanceMapData
+{
+    WorldSafeLocsEntry const* Entrance;
+    WorldSafeLocsEntry const* Graveyard;
+    WorldSafeLocsEntry const* Exit;
+    bool UseEntranceAsGraveyard;
+};
+
+typedef std::unordered_map<uint32, std::unordered_map<uint8, InstanceMapData const*>> InstanceMapInfo;
 
 enum LevelRequirementVsMode
 {
@@ -779,6 +788,13 @@ class TC_GAME_API InstanceMap : public Map
         EnterState CannotEnter(Player* player) override;
         void SendResetWarnings(uint32 timeLeft) const;
         void SetResetSchedule(bool on);
+
+        WorldSafeLocsEntry const* GetEntrancePos();
+        WorldSafeLocsEntry const* GetGraveyardPos();
+        WorldSafeLocsEntry const* GetExitPos();
+        //WorldSafeLocsEntry const* GetEntrancePos();
+        //WorldSafeLocsEntry const* GetGraveyardPos() { return m_data->UseEntranceAsGraveyard ? GetEntrancePos() : m_data->Graveyard; }
+        //WorldSafeLocsEntry const* GetExitPos() { return m_data->Exit; }
 
         /* this checks if any players have a permanent bind (included reactivatable expired binds) to the instance ID
         it needs a DB query, so use sparingly */

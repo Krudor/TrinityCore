@@ -386,7 +386,7 @@ public:
     static bool HandleReloadChallengeModes(ChatHandler* handler, char const* /*args*/)
     {
         TC_LOG_INFO("misc", "Re-Loading Challenge Modes");
-        sChallengeModeMgr->LoadChallengeModes(); // WHY DOES THIS NOT WORK?!
+        sChallengeModeMgr->LoadChallengeModeRecords();
         handler->SendGlobalGMSysMessage("DB tables `challenge_mode_record` and `challenge_mode_record_members` reloaded.");
         return true;
     }

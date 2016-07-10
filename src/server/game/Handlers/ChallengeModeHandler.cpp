@@ -22,6 +22,18 @@
 #include "WorldSession.h"
 #include "ChallengeModeMgr.h"
 
+void WorldSession::HandleResetChallengeModeOpcode(WorldPackets::ChallengeMode::ResetChallengeMode& /*packet*/)
+{
+    if (Group* group = _player->GetGroup())
+        if (!group->IsLeader(_player->GetGUID()))
+            return;
+
+    if (InstanceMap* instanceMap = _player->GetMap()->ToInstanceMap())
+        if (Scenario* scenario = instanceMap->GetScenario())
+            if (ChallengeMode* challengeMode = scenario->GetChallengeMode())
+                challengeMode->Reset(_player);
+}
+
 void WorldSession::HandleChallengeModeRequestLeaders(WorldPackets::ChallengeMode::ChallengeModeRequestLeaders& request)
 {
     WorldPackets::ChallengeMode::ChallengeModeRequestLeadersResult result;
@@ -29,9 +41,16 @@ void WorldSession::HandleChallengeModeRequestLeaders(WorldPackets::ChallengeMode
     SendPacket(result.Write());
 } 
 
-void WorldSession::HandleChallengeModeRequestMapStats(WorldPackets::ChallengeMode::ChallengeModeRequestMapStats& request)
+void WorldSession::HandleChallengeModeRequestMapStats(WorldPackets::ChallengeMode::ChallengeModeRequestMapStats& /*request*/)
 {
     WorldPackets::ChallengeMode::ChallengeModeRequestMapStatsResult result;
     sChallengeModeMgr->BuildMapStatsResult(result, GetPlayer());
+    SendPacket(result.Write());
+}
+
+void WorldSession::HandleGetChallengeModeRewards(WorldPackets::ChallengeMode::GetChallengeModeRewards& /*request*/)
+{
+    WorldPackets::ChallengeMode::ChallengeModeRewards result;
+    sChallengeModeMgr->BuildRewardsResult(result);
     SendPacket(result.Write());
 }

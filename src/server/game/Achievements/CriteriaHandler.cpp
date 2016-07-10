@@ -941,62 +941,62 @@ bool CriteriaHandler::IsCompletedCriteriaTree(CriteriaTree const* tree)
     uint64 requiredCount = tree->Entry->Amount;
     switch (tree->Entry->Operator)
     {
-    case CRITERIA_TREE_OPERATOR_SINGLE:
-        return tree->Criteria && IsCompletedCriteria(tree->Criteria, requiredCount);
-    case CRITERIA_TREE_OPERATOR_SINGLE_NOT_COMPLETED:
-        return !tree->Criteria || !IsCompletedCriteria(tree->Criteria, requiredCount);
-    case CRITERIA_TREE_OPERATOR_ALL:
-        for (CriteriaTree const* node : tree->Children)
-            if (!IsCompletedCriteriaTree(node))
-                return false;
-        return true;
-    case CRITERIA_TREE_OPERAROR_SUM_CHILDREN:
-    {
-        uint64 progress = 0;
-        CriteriaMgr::WalkCriteriaTree(tree, [this, &progress](CriteriaTree const* criteriaTree)
+        case CRITERIA_TREE_OPERATOR_SINGLE:
+            return tree->Criteria && IsCompletedCriteria(tree->Criteria, requiredCount);
+        case CRITERIA_TREE_OPERATOR_SINGLE_NOT_COMPLETED:
+            return !tree->Criteria || !IsCompletedCriteria(tree->Criteria, requiredCount);
+        case CRITERIA_TREE_OPERATOR_ALL:
+            for (CriteriaTree const* node : tree->Children)
+                if (!IsCompletedCriteriaTree(node))
+                    return false;
+            return true;
+        case CRITERIA_TREE_OPERAROR_SUM_CHILDREN:
         {
-            if (criteriaTree->Criteria)
-                if (CriteriaProgress const* criteriaProgress = GetCriteriaProgress(criteriaTree->Criteria))
-                    progress += criteriaProgress->Counter;
-        });
-        return progress >= requiredCount;
-    }
-    case CRITERIA_TREE_OPERATOR_MAX_CHILD:
-    {
-        uint64 progress = 0;
-        CriteriaMgr::WalkCriteriaTree(tree, [this, &progress](CriteriaTree const* criteriaTree)
+            uint64 progress = 0;
+            CriteriaMgr::WalkCriteriaTree(tree, [this, &progress](CriteriaTree const* criteriaTree)
+            {
+                if (criteriaTree->Criteria)
+                    if (CriteriaProgress const* criteriaProgress = GetCriteriaProgress(criteriaTree->Criteria))
+                        progress += criteriaProgress->Counter;
+            });
+            return progress >= requiredCount;
+        }
+        case CRITERIA_TREE_OPERATOR_MAX_CHILD:
         {
-            if (criteriaTree->Criteria)
-                if (CriteriaProgress const* criteriaProgress = GetCriteriaProgress(criteriaTree->Criteria))
-                    if (criteriaProgress->Counter > progress)
-                        progress = criteriaProgress->Counter;
-        });
-        return progress >= requiredCount;
-    }
-    case CRITERIA_TREE_OPERATOR_COUNT_DIRECT_CHILDREN:
-    {
-        uint64 progress = 0;
-        for (CriteriaTree const* node : tree->Children)
-            if (node->Criteria)
-                if (CriteriaProgress const* criteriaProgress = GetCriteriaProgress(node->Criteria))
-                    if (criteriaProgress->Counter >= 1)
-                        if (++progress >= requiredCount)
-                            return true;
+            uint64 progress = 0;
+            CriteriaMgr::WalkCriteriaTree(tree, [this, &progress](CriteriaTree const* criteriaTree)
+            {
+                if (criteriaTree->Criteria)
+                    if (CriteriaProgress const* criteriaProgress = GetCriteriaProgress(criteriaTree->Criteria))
+                        if (criteriaProgress->Counter > progress)
+                            progress = criteriaProgress->Counter;
+            });
+            return progress >= requiredCount;
+        }
+        case CRITERIA_TREE_OPERATOR_COUNT_DIRECT_CHILDREN:
+        {
+            uint64 progress = 0;
+            for (CriteriaTree const* node : tree->Children)
+                if (node->Criteria)
+                    if (CriteriaProgress const* criteriaProgress = GetCriteriaProgress(node->Criteria))
+                        if (criteriaProgress->Counter >= 1)
+                            if (++progress >= requiredCount)
+                                return true;
 
-        return false;
-    }
-    case CRITERIA_TREE_OPERATOR_ANY:
-    {
-        uint64 progress = 0;
-        for (CriteriaTree const* node : tree->Children)
-            if (IsCompletedCriteriaTree(node))
-                if (++progress >= requiredCount)
-                    return true;
+            return false;
+        }
+        case CRITERIA_TREE_OPERATOR_ANY:
+        {
+            uint64 progress = 0;
+            for (CriteriaTree const* node : tree->Children)
+                if (IsCompletedCriteriaTree(node))
+                    if (++progress >= requiredCount)
+                        return true;
 
-        return false;
-    }
-    default:
-        break;
+            return false;
+        }
+        default:
+            break;
     }
 
     return false;

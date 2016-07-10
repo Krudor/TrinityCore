@@ -103,6 +103,10 @@ class TC_GAME_API MapManager
         void DoDelayedMovesAndRemoves();
 
         Map::EnterState PlayerCannotEnter(uint32 mapid, Player* player, bool loginCheck = false);
+        WorldSafeLocsEntry const* GetDefaultEntranceLocation(uint32 mapid, uint8 difficulty);
+        WorldSafeLocsEntry const* GetExitLocation(uint32 mapid, uint8 difficulty);
+        WorldSafeLocsEntry const* GetGraveyardLocation(uint32 mapid, uint8 difficulty);
+
         void InitializeVisibilityDistanceInfo();
 
         /* statistics */

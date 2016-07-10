@@ -119,9 +119,11 @@ protected:
 private:
     void SendScenarioState();
     void SetStep(int8 step);
+    void CompleteScenario();
     void Boot(Player* player);
     //std::map<uint8, CriteriaProgressMap> StepsCriteriaProgress;
     int8 _step;
+    int8 _lastStep;
     bool _complete;
 };
 

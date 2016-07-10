@@ -46,8 +46,6 @@ class instance_siege_of_orgrimmar : public InstanceMapScript
 
 			void OnPlayerEnter(Player* player) override
 			{
-				SetEntranceLocation(WSL_PRE_GOLDEN_LOTUS);
-				SetTemporaryEntranceLocation(WSL_PRE_GARROSH);
 			}
 
 			void OnCreatureCreate(Creature* creature) override
@@ -174,16 +172,16 @@ class instance_siege_of_orgrimmar : public InstanceMapScript
 						switch (type)
 						{
 							case INSTANCE_PROGRESS_REACHED_NORUSHEN:
-								SetTemporaryEntranceLocation(WSL_PRE_SHA);
+								SetEntranceLocation(WSL_PRE_SHA, false);
 								break;
 							case INSTANCE_PROGRESS_ORGRIMMAR_GATES:
-								SetTemporaryEntranceLocation(WSL_PRE_DARK_SHAMAN);
+                                SetEntranceLocation(WSL_PRE_DARK_SHAMAN, false);
 								break;
 							case INSTANCE_PROGRESS_REACHED_GAMON:
-								SetTemporaryEntranceLocation(WSL_THE_DRAG);
+                                SetEntranceLocation(WSL_THE_DRAG, false);
 								break;
 							case INSTANCE_PROGRESS_REACHED_UNDERHOLD:
-								SetTemporaryEntranceLocation(WSL_THE_UNDERHOLD);
+                                SetEntranceLocation(WSL_THE_UNDERHOLD, false);
 								break;
 							default:
 								break;

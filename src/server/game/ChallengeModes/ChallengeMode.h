@@ -23,7 +23,6 @@
 #include "DB2Structure.h"
 #include "Map.h"
 #include "EventProcessor.h"
-#include "math.h"
 //#include "InstanceScript.h"
 
 namespace WorldPackets
@@ -34,18 +33,34 @@ namespace WorldPackets
     }
 }
 
+struct ChallengeModeData;
+
+enum ChallengeModeMedals
+{
+    CM_MEDAL_NONE   = 0,
+    CM_MEDAL_BRONZE = 1,
+    CM_MEDAL_SILVER = 2,
+    CM_MEDAL_GOLD   = 3,
+    CM_MEDAL_MAX    = 4,
+};
+
+enum ChallengeModeStatus
+{
+    CM_STATUS_NOT_STARTED,
+    CM_STATUS_PREPARING,
+    CM_STATUS_IN_PROGRESS,
+    CM_STATUS_DONE
+};
+
 enum ChallengeModeSpells
 {
     SPELL_LESSER_INVISIBILITY   = 3680,
     SPELL_INVISIBILITY          = 11392,
 };
 
-enum ChallengeModeMedals
+enum CMSpellCategories
 {
-    CM_MEDAL_NONE       = 0,
-    CM_MEDAL_BRONZE     = 1,
-    CM_MEDAL_SILVER     = 2,
-    CM_MEDAL_GOLD       = 3
+    SPELLCATEGORY_CHALLENGERS_PATH  = 1407
 };
 
 // Extent of Elapsed Timer's are currently unknown (at least to the writer of this functionality). Currently treating this with having a map contraint.
@@ -77,8 +92,9 @@ class TC_GAME_API ChallengeMode
 
         virtual ~ChallengeMode() { }
 
-        Map* instance;
-        MapChallengeModeEntry const* data;
+        Map* _instance;
+        MapChallengeModeEntry const* _entry;
+        ChallengeModeData const* _data;
 
     public:
         void Start();
@@ -90,44 +106,29 @@ class TC_GAME_API ChallengeMode
 		void OnPlayerExit(Player* player) const;
         void HandleAreaTrigger(Player* source, uint32 trigger, bool entered);
         void OnPlayerOutOfBounds(Player* player) const;
-        bool IsCompleted() { return _state == 3; }
-        bool InProgress() { return _state == 1; }
-        uint32 GetState() { return _state; }
-        uint32 GetMedal(uint32 timeInMilliseconds)
-        {
-            ChallengeModeMedals medal = CM_MEDAL_NONE;
+        bool IsCompleted() const { return _status == CM_STATUS_DONE; }
+        bool InProgress() const { return _status == CM_STATUS_IN_PROGRESS; }
+        bool CanStart() const { return _status == CM_STATUS_NOT_STARTED; }
+        uint32 GetState() const { return _status; }
 
-            if (data)
-            {
-                if (timeInMilliseconds > data->BronzeTime * IN_MILLISECONDS)
-                    medal = CM_MEDAL_BRONZE;
-                if (timeInMilliseconds > data->SilverTime * IN_MILLISECONDS)
-                    medal = CM_MEDAL_SILVER;
-                if (timeInMilliseconds > data->GoldTime * IN_MILLISECONDS)
-                    medal = CM_MEDAL_GOLD;
-            }
-
-            return uint32(medal);
-        }
+        uint32 GetMedal(uint32 timeInMilliseconds) const;
         //uint32 GetTime() { return GetMSTimeDiffToNow(timeStart); }
         //uint32 GetTime() { return GetMSTimeDiffToNow(_elapsedTimers->GetElapsedTimer(elapsedTimerId)); }
         
         void Update(uint32 diff);
 
-    private:
-        bool CanStart() { return _state == 0; }
-
+private:
         ElapsedTimers* _elapsedTimers;
         int32 elapsedTimerId;
         bool _startedByTimer;
-        uint32 _state;
+        ChallengeModeStatus _status;
         EventProcessor _events;
         //uint32 timeStart;
         uint32 timeComplete;
         time_t lastReset;
-        uint32 outOfBoundsAreatriggerId;
 
-        void SaveAttemptToDb();
+        // returns attemptId
+        uint32 SaveAttemptToDb() const;
 };
 
 class ChallengeModeStartEvent : public BasicEvent

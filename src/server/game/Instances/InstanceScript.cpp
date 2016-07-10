@@ -40,7 +40,7 @@ BossBoundaryData::~BossBoundaryData()
 }
 
 InstanceScript::InstanceScript(Map* map) : instance(map), completedEncounters(0),
-_combatResurrectionTimer(0), _combatResurrectionCharges(0), entranceId(0), temporaryEntranceId(0), _combatResurrectionTimerStarted(false)
+_combatResurrectionTimer(0), _combatResurrectionCharges(0), _entrance(nullptr), persistentEntrance(nullptr), _combatResurrectionTimerStarted(false)
 {
 #ifdef TRINITY_API_USE_DYNAMIC_LINKING
     uint32 scriptId = sObjectMgr->GetInstanceTemplate(map->GetId())->ScriptId;
@@ -61,7 +61,7 @@ void InstanceScript::SaveToDB()
     PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_INSTANCE_DATA);
     stmt->setUInt32(0, GetCompletedEncounterMask());
     stmt->setString(1, data);
-    stmt->setUInt32(2, entranceId);
+    stmt->setUInt32(2, persistentEntrance ? persistentEntrance->ID : 0);
     stmt->setUInt32(3, instance->GetInstanceId());
     CharacterDatabase.Execute(stmt);
 }
@@ -607,11 +607,18 @@ bool InstanceScript::CheckAchievementCriteriaMeet(uint32 criteria_id, Player con
     return false;
 }
 
-void InstanceScript::SetEntranceLocation(uint32 worldSafeLocationId)
+void InstanceScript::SetEntranceLocation(uint32 worldSafeLocationId, bool save)
 {
-    entranceId = worldSafeLocationId;
-    if (temporaryEntranceId > 0)
-        temporaryEntranceId = 0;
+    WorldSafeLocsEntry const* entrance = sWorldSafeLocsStore.LookupEntry(worldSafeLocationId);
+    if (!entrance)
+    {
+        TC_LOG_DEBUG("map.instance", "InstanceScript::SetEntranceLocation was called with an invalid WorldSafeLocs.dbc id (%u), entrance will not be updated!");
+        return;
+    }
+
+    _entrance = entrance;
+    if (save)
+        persistentEntrance = entrance;
 }
 
 void InstanceScript::SendEncounterUnit(uint32 type, Unit* unit /*= NULL*/, uint8 priority)

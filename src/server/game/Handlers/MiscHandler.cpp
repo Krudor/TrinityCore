@@ -48,6 +48,7 @@
 #include "WhoPackets.h"
 #include "InstancePackets.h"
 #include "InstanceScript.h"
+#include <ChallengeModeMgr.h>
 
 void WorldSession::HandleRepopRequest(WorldPackets::Misc::RepopRequest& /*packet*/)
 {
@@ -624,24 +625,39 @@ void WorldSession::HandleAreaTriggerOpcode(WorldPackets::Misc::AreaTrigger& pack
 
     if (!teleported)
     {
-        const WorldSafeLocsEntry* entranceLocation = nullptr;
-        InstanceSave* instanceSave = player->GetInstanceSave(at->target_mapId);
-        if (instanceSave)
+        WorldSafeLocsEntry const* entrance = nullptr;
+        if (InstanceSave* instanceSave = player->GetInstanceSave(at->target_mapId))
         {
-            // Check if we can contact the instancescript of the instance for an updated entrance location
-            if (Map* map = sMapMgr->FindMap(at->target_mapId, player->GetInstanceSave(at->target_mapId)->GetInstanceId()))
-                if (InstanceScript* instanceScript = ((InstanceMap*)map)->GetInstanceScript())
-                    entranceLocation = sWorldSafeLocsStore.LookupEntry(instanceScript->GetEntranceLocation());
-
-            // Finally check with the instancesave for an entrance location if we did not get a valid one from the instancescript
-            if (!entranceLocation)
-                entranceLocation = sWorldSafeLocsStore.LookupEntry(instanceSave->GetEntranceLocation());
+            if (Map* map = sMapMgr->FindMap(at->target_mapId, instanceSave->GetInstanceId()))
+                if (InstanceMap* instanceMap = map->ToInstanceMap())
+                    entrance = instanceMap->GetEntrancePos();
         }
+        else if (MapEntry const* entry = sMapStore.LookupEntry(at->target_mapId))
+            entrance = sMapMgr->GetDefaultEntranceLocation(at->target_mapId, player->GetDifficultyID(entry));
 
-        if (entranceLocation)
-            player->TeleportTo(entranceLocation->MapID, entranceLocation->Loc.X, entranceLocation->Loc.Y, entranceLocation->Loc.Z, entranceLocation->Facing * M_PI / 180, TELE_TO_NOT_LEAVE_TRANSPORT);
+        if (entrance)
+            player->TeleportTo(entrance->MapID, entrance->Loc.X, entrance->Loc.Y, entrance->Loc.Z, entrance->Facing * M_PI / 180, TELE_TO_NOT_LEAVE_TRANSPORT);
         else
             player->TeleportTo(at->target_mapId, at->target_X, at->target_Y, at->target_Z, at->target_Orientation, TELE_TO_NOT_LEAVE_TRANSPORT);
+        //}
+        //const WorldSafeLocsEntry* entranceLocation = nullptr;
+        //InstanceSave* instanceSave = player->GetInstanceSave(at->target_mapId);
+        //if (instanceSave)
+        //{
+        //    // Check if we can contact the instancescript of the instance for an updated entrance location
+        //    if (Map* map = sMapMgr->FindMap(at->target_mapId, player->GetInstanceSave(at->target_mapId)->GetInstanceId()))
+        //        if (InstanceScript* instanceScript = ((InstanceMap*)map)->GetInstanceScript())
+        //            entranceLocation = sWorldSafeLocsStore.LookupEntry(instanceScript->GetEntranceLocation());
+
+        //    // Finally check with the instancesave for an entrance location if we did not get a valid one from the instancescript
+        //    if (!entranceLocation)
+        //        entranceLocation = sWorldSafeLocsStore.LookupEntry(instanceSave->GetEntranceLocation());
+        //}
+
+        //if (entranceLocation)
+        //    player->TeleportTo(entranceLocation->MapID, entranceLocation->Loc.X, entranceLocation->Loc.Y, entranceLocation->Loc.Z, entranceLocation->Facing * M_PI / 180, TELE_TO_NOT_LEAVE_TRANSPORT);
+        //else
+        //    player->TeleportTo(at->target_mapId, at->target_X, at->target_Y, at->target_Z, at->target_Orientation, TELE_TO_NOT_LEAVE_TRANSPORT);
     }
 }
 
@@ -888,18 +904,6 @@ void WorldSession::HandleResetInstancesOpcode(WorldPackets::Instance::ResetInsta
     }
     else
         _player->ResetInstances(INSTANCE_RESET_ALL, false, false);
-}
-
-void WorldSession::HandleResetChallengeModeOpcode(WorldPackets::ChallengeMode::ResetChallengeMode& /*packet*/)
-{
-    if (Group* group = _player->GetGroup())
-        if (!group->IsLeader(_player->GetGUID()))
-            return;
-
-    if (InstanceMap* instanceMap = _player->GetMap()->ToInstanceMap())
-        if (Scenario* scenario = instanceMap->GetScenario())
-            if (ChallengeMode* challengeMode = scenario->GetChallengeMode())
-                challengeMode->Reset(_player);
 }
 
 void WorldSession::HandleSetDungeonDifficultyOpcode(WorldPackets::Misc::SetDungeonDifficulty& setDungeonDifficulty)

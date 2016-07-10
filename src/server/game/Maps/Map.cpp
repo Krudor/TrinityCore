@@ -1533,6 +1533,11 @@ bool Map::UnloadGrid(NGridType& ngrid, bool unloadAll)
     {
         if (!unloadAll)
         {
+            // Do not unload challenge modes
+            if (DifficultyEntry const* difficulty = sDifficultyStore.LookupEntry(GetDifficultyID()))
+                if (difficulty->Flags & DIFFICULTY_FLAG_CHALLENGE_MODE)
+                    return false;
+
             //pets, possessed creatures (must be active), transport passengers
             if (ngrid.GetWorldObjectCountInNGrid<Creature>())
                 return false;
@@ -2811,6 +2816,36 @@ void Map::DelayedUpdate(const uint32 t_diff)
     }
 }
 
+WorldSafeLocsEntry const* InstanceMap::GetEntrancePos()
+{
+    if (InstanceScript* instanceScript = GetInstanceScript())
+        if (WorldSafeLocsEntry const* entrance = instanceScript->GetEntranceLocation())
+            return entrance;
+
+    InstanceSave* mapSave = sInstanceSaveMgr->GetInstanceSave(GetInstanceId());
+    if (!mapSave || !mapSave->GetEntranceLocationId())
+        return m_data->Entrance;
+
+    WorldSafeLocsEntry const* entrance = sWorldSafeLocsStore.LookupEntry(mapSave->GetEntranceLocationId());
+    if (!entrance)
+    {
+        TC_LOG_ERROR("map.instance", "InstanceSave specified a specific entrance location (Id: %u), but that WorldSafeLocsEntry does not exist!", mapSave->GetEntranceLocationId());
+        return m_data->Entrance;
+    }
+
+    return entrance;
+}
+
+WorldSafeLocsEntry const* InstanceMap::GetGraveyardPos()
+{
+    return m_data->UseEntranceAsGraveyard ? GetEntrancePos() : m_data->Graveyard;
+}
+
+WorldSafeLocsEntry const* InstanceMap::GetExitPos()
+{
+    return m_data->Exit;
+}
+
 void Map::AddObjectToRemoveList(WorldObject* obj)
 {
     ASSERT(obj->GetMapId() == GetId() && obj->GetInstanceId() == GetInstanceId());
@@ -3250,7 +3285,7 @@ void InstanceMap::RemovePlayerFromMap(Player* player, bool remove)
     Map::RemovePlayerFromMap(player, remove);
 
 	if (i_scenario)
-		i_scenario->OnPlayerEnter(player);
+		i_scenario->OnPlayerExit(player);
 
     // for normal instances schedule the reset after all players have left
     SetResetSchedule(true);
@@ -3287,6 +3322,7 @@ void InstanceMap::CreateInstanceData(bool load)
             Field* fields = result->Fetch();
             std::string data = fields[0].GetString();
             i_data->SetCompletedEncountersMask(fields[1].GetUInt32());
+            i_data->SetEntranceLocation(fields[2].GetUInt16());
             if (!data.empty())
             {
                 TC_LOG_DEBUG("maps", "Loading instance data for `%s` with id %u", sObjectMgr->GetScriptName(i_script_id).c_str(), i_InstanceId);

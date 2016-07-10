@@ -77,15 +77,15 @@ WorldPacket const* WorldPackets::ChallengeMode::ChallengeModeRequestLeadersResul
     return &_worldPacket;
 }
 
-ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::ChallengeMode::ChallengeModeMapStats const* map)
+ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::ChallengeMode::ChallengeModeMapStats const map)
 {
-    data << uint32(map->MapId);
-    data << uint32(map->BestCompletionTime);
-    data << uint32(map->LastCompletionTime);
-    data << uint32(map->Medal);
-    data << uint32(map->BestCompletionDate);
-    data << uint32(map->Specs.size());
-    for (auto spec : map->Specs)
+    data << uint32(map.MapId);
+    data << uint32(map.BestCompletionTime);
+    data << uint32(map.LastCompletionTime);
+    data << uint32(map.Medal);
+    data << uint32(map.BestCompletionDate);
+    data << uint32(map.Specs.size());
+    for (auto spec : map.Specs)
         data << uint16(spec);
 
     return data;
@@ -100,7 +100,7 @@ WorldPacket const* WorldPackets::ChallengeMode::ChallengeModeRequestMapStatsResu
     return &_worldPacket;
 }
 
-WorldPacket const* WorldPackets::ChallengeMode::ChallengeModeRequestMapStatsUpdateResult::Write()
+WorldPacket const* WorldPackets::ChallengeMode::ChallengeModeMapStatsUpdate::Write()
 {
     _worldPacket << MapStats;
 	return &_worldPacket;
@@ -108,8 +108,72 @@ WorldPacket const* WorldPackets::ChallengeMode::ChallengeModeRequestMapStatsUpda
 
 WorldPacket const* WorldPackets::ChallengeMode::ChallengeModeNewPlayerRecord::Write()
 {
-    _worldPacket << MapID;
-    _worldPacket << Time;
-    _worldPacket << Medal;
+    _worldPacket << uint32(MapID);
+    _worldPacket << uint32(Time);
+    _worldPacket << uint32(Medal);
 	return &_worldPacket;
+}
+
+// Need data type and structure validation from one of the TrinityCore magic-workers
+WorldPacket const* WorldPackets::ChallengeMode::ChallengeModeComplete::Write()
+{
+    _worldPacket << uint32(ItemRewards.size());
+    _worldPacket << uint32(CurrencyRewards.size());
+    _worldPacket << uint32(MoneyReward);
+
+    for (std::list<ItemReward>::iterator itr = ItemRewards.begin(); itr != ItemRewards.end(); ++itr)
+    {
+        _worldPacket << itr->Item;
+        _worldPacket << uint32(itr->Quantity);
+    }
+
+    for (std::list<CurrencyReward>::iterator itr = CurrencyRewards.begin(); itr != CurrencyRewards.end(); ++itr)
+    {
+        _worldPacket << uint32(itr->CurrencyId);
+        _worldPacket << uint32(itr->Quantity);
+    }
+
+    _worldPacket << uint32(Time);
+    _worldPacket << uint32(MapID);
+    _worldPacket << uint32(Medal);
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::ChallengeMode::ChallengeModeRewards::Write()
+{
+    _worldPacket << uint32(CMRewards.size());
+    _worldPacket << uint32(ItemRewards.size());
+
+    for (std::list<ChallengeModeReward>::iterator itr = CMRewards.begin(); itr != CMRewards.end(); ++itr)
+    {
+        _worldPacket << uint32(itr->MapId);
+        _worldPacket << uint32(CM_MEDAL_MAX);
+        for (int i = 0; i < CM_MEDAL_MAX; ++i)
+        {
+            _worldPacket << uint32(itr->ItemRewards.size());
+            _worldPacket << uint32(itr->CurrencyRewards.size());
+            _worldPacket << uint32(itr->MoneyReward);
+
+            for (std::list<ItemReward>::iterator itemsItr = itr->ItemRewards.begin(); itemsItr != itr->ItemRewards.end(); ++itr)
+            {
+                _worldPacket << itemsItr->Item;
+                _worldPacket << uint32(itemsItr->Quantity);
+            }
+
+            for (std::list<CurrencyReward>::iterator currencyitr = itr->CurrencyRewards.begin(); currencyitr != itr->CurrencyRewards.end(); ++itr)
+            {
+                _worldPacket << uint32(currencyitr->CurrencyId);
+                _worldPacket << uint32(currencyitr->Quantity);
+            }
+        }
+    }
+
+    for (std::list<ItemReward>::iterator itr = ItemRewards.begin(); itr != ItemRewards.end(); ++itr)
+    {
+        _worldPacket << itr->Item;
+        _worldPacket << uint32(itr->Quantity);
+    }
+
+    return &_worldPacket;
 }

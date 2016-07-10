@@ -966,7 +966,7 @@ struct ScenarioStepEntry
     uint32      BonusStepFlag; // 0 = Not bonus step, 1 = Bonus step, 2 = Unknown
     uint32      Unknown1;
     uint32      Unknown2; // Points to the previous step on some steps
-    uint32      Unknown3;
+    uint32      RewardQuest;
 };
 
 struct SkillLineEntry

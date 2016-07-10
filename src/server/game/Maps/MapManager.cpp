@@ -208,6 +208,33 @@ Map::EnterState MapManager::PlayerCannotEnter(uint32 mapid, Player* player, bool
         return Map::CANNOT_ENTER_UNSPECIFIED_REASON;
 }
 
+WorldSafeLocsEntry const * MapManager::GetDefaultEntranceLocation(uint32 mapid, uint8 difficulty)
+{
+    InstanceMapData const* instanceMapData = sObjectMgr->GetInstanceMapData(mapid, difficulty);
+    if (instanceMapData)
+        return instanceMapData->Entrance;
+
+    return nullptr;
+}
+
+WorldSafeLocsEntry const * MapManager::GetGraveyardLocation(uint32 mapid, uint8 difficulty)
+{
+    InstanceMapData const* instanceMapData = sObjectMgr->GetInstanceMapData(mapid, difficulty);
+    if (instanceMapData)
+        return instanceMapData->UseEntranceAsGraveyard ? GetDefaultEntranceLocation(mapid, difficulty) : instanceMapData->Graveyard;
+
+    return nullptr;
+}
+
+WorldSafeLocsEntry const * MapManager::GetExitLocation(uint32 mapid, uint8 difficulty)
+{
+    InstanceMapData const* instanceMapData = sObjectMgr->GetInstanceMapData(mapid, difficulty);
+    if (instanceMapData)
+        return instanceMapData->Exit;
+
+    return nullptr;
+}
+
 void MapManager::Update(uint32 diff)
 {
     i_timer.Update(diff);

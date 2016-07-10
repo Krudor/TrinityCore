@@ -75,8 +75,8 @@ class TC_GAME_API InstanceSave
         void SetResetTime(time_t resetTime) { m_resetTime = resetTime; }
         time_t GetResetTimeForDB();
 
-        uint32 GetEntranceLocation() const { return m_entranceId; }
-        void SetEntranceLocation(uint32 entranceId) { m_entranceId = entranceId; }
+        uint32 GetEntranceLocationId() const { return m_entranceId; }
+        void SetEntranceLocationId(uint32 entranceId) { m_entranceId = entranceId; }
 
         InstanceTemplate const* GetTemplate();
         MapEntry const* GetMapEntry();

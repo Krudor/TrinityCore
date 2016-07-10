@@ -21,6 +21,7 @@
 #include "Packet.h"
 #include "ObjectGuid.h"
 #include "WorldSession.h"
+#include "ItemPackets.h"
 
 namespace WorldPackets
 {
@@ -62,7 +63,7 @@ namespace WorldPackets
         struct ChallengeModeLeader
         {
             std::list<ChallengeModeGroup*> Groups;
-            time_t LastUpdated = time_t(0);
+            time_t LastUpdated = time_t(NULL);
         };
 
         class ChallengeModeStart final : public WorldPackets::ServerPacket
@@ -135,29 +136,34 @@ namespace WorldPackets
 
 				WorldPacket const* Write() override;
 
-				std::map<uint32, ChallengeModeMapStats*> AllMapStats;
+				std::map<uint32, ChallengeModeMapStats> AllMapStats;
 		};
 
-		class ChallengeModeRequestMapStatsUpdateResult final : public WorldPackets::ServerPacket
+		class ChallengeModeMapStatsUpdate final : public WorldPackets::ServerPacket
 		{
 			public:
-				ChallengeModeRequestMapStatsUpdateResult() : ServerPacket(SMSG_CHALLENGE_MODE_MAP_STATS_UPDATE) { }
+                ChallengeModeMapStatsUpdate() : ServerPacket(SMSG_CHALLENGE_MODE_MAP_STATS_UPDATE) { }
 
 				WorldPacket const* Write() override;
 
-				ChallengeModeMapStats* MapStats;
+				ChallengeModeMapStats MapStats;
 		};
 
 		class ChallengeModeNewPlayerRecord final : public WorldPackets::ServerPacket
 		{
 			public:
-				ChallengeModeNewPlayerRecord() : ServerPacket(SMSG_CHALLENGE_MODE_NEW_PLAYER_RECORD) { }
+				ChallengeModeNewPlayerRecord(ChallengeModeGroup const* group) : ServerPacket(SMSG_CHALLENGE_MODE_NEW_PLAYER_RECORD)
+				{
+                    MapID = group->MapId;
+                    Time = group->CompletionTime;
+                    Medal = group->MedalEarned;
+				}
 
 				WorldPacket const* Write() override;
 
-				uint32 MapID;
-				uint32 Time;
-				uint32 Medal;
+				uint32 MapID = 0;
+				uint32 Time = 0;
+				uint32 Medal = 0;
 		};
 
         class ResetChallengeMode final : public ClientPacket
@@ -166,6 +172,60 @@ namespace WorldPackets
                 ResetChallengeMode(WorldPacket&& packet) : ClientPacket(CMSG_RESET_CHALLENGE_MODE, std::move(packet)) { }
 
                 void Read() override { }
+        };
+
+        struct CurrencyReward
+        {
+            uint32 CurrencyId = 0;
+            uint32 Quantity = 0;
+        };
+
+        struct ItemReward
+        {
+            WorldPackets::Item::ItemInstance Item;
+            uint32 Quantity = 0;
+        };
+
+        class ChallengeModeComplete final : public WorldPackets::ServerPacket
+        {
+            public:
+                ChallengeModeComplete() : ServerPacket(SMSG_CHALLENGE_MODE_COMPLETE) { }
+
+                WorldPacket const* Write() override;
+
+                uint32 MoneyReward = 0;
+                std::list<ItemReward> ItemRewards;
+                std::list<CurrencyReward> CurrencyRewards;
+                uint32 Time = 0;
+                uint32 MapID = 0;
+                uint32 Medal = 0;
+        };
+
+        class GetChallengeModeRewards final : public ClientPacket
+        {
+            public:
+                GetChallengeModeRewards(WorldPacket&& packet) : ClientPacket(CMSG_GET_CHALLENGE_MODE_REWARDS, std::move(packet)) { }
+
+                void Read() override { }
+        };
+
+        struct ChallengeModeReward
+        {
+            uint32 MapId = 0;
+            std::list<ItemReward> ItemRewards;
+            std::list<CurrencyReward> CurrencyRewards;
+            uint32 MoneyReward = 0;
+        };
+
+        class ChallengeModeRewards final : public ServerPacket
+        {
+            public:
+                ChallengeModeRewards() : ServerPacket(SMSG_CHALLEGE_MODE_REWARDS) { }
+
+                WorldPacket const* Write() override;
+
+                std::list<ChallengeModeReward> CMRewards;
+                std::list<ItemReward> ItemRewards;
         };
     }
 }

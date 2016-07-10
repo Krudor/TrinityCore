@@ -30,7 +30,7 @@ Scenario::~Scenario()
     _data = nullptr;
 }
 
-Scenario::Scenario(Map* map, ScenarioData const* scenarioData) : _map(map), _data(scenarioData), challengeMode(new ChallengeMode(map)), _complete(false), _step(-1), waveGroup(nullptr)
+Scenario::Scenario(Map* map, ScenarioData const* scenarioData) : _map(map), _data(scenarioData), challengeMode(new ChallengeMode(map)), _complete(false), _step(-1), _lastStep(0), waveGroup(nullptr)
 {
     ASSERT(_map);
     ASSERT(_data);
@@ -39,9 +39,14 @@ Scenario::Scenario(Map* map, ScenarioData const* scenarioData) : _map(map), _dat
 
     SendScenarioState();
 
+    ASSERT(!_data->Steps.empty());
     ScenarioStepEntry const* step = _data->Steps.at(0);
     if (step)
         SetStep(step->Step);
+
+    for (auto itr = _data->Steps.begin(); itr != _data->Steps.end(); ++itr)
+        if (_lastStep < itr->second->Step)
+            _lastStep = itr->second->Step;
 }
 
 void Scenario::SaveToDB()
@@ -135,8 +140,8 @@ void Scenario::Update(uint32 diff)
 void Scenario::Reset()
 {
     CriteriaHandler::Reset();
-
-    SendScenarioState();
+    _complete = false;
+    SetStep(0);
 }
 
 void Scenario::OnSpellCriteria(Criteria const * criteria, Unit const * caster)
@@ -162,10 +167,22 @@ void Scenario::OnPlayerExit(Player* player) const
 void Scenario::SetStep(int8 step)
 {
     _step = step;
+    SendScenarioState();
 
-    WorldPackets::Scenario::ScenarioState scenarioState;
-    BuildScenarioState(&scenarioState);
-    SendPacket(scenarioState.Write());
+    if (_step > _lastStep)
+        if (!IsComplete())
+            CompleteScenario();
+}
+
+void Scenario::CompleteScenario()
+{
+    if (IsComplete())
+        return;
+
+    _complete = true;
+    SendPacket(WorldPackets::Scenario::ScenarioCompleted(_data->Entry->ID).Write());
+    if (challengeMode)
+        challengeMode->Complete();
 }
 
 void Scenario::SendAllData(Player const * receiver) const
@@ -199,14 +216,19 @@ bool Scenario::CanUpdateCriteriaTree(Criteria const * criteria, CriteriaTree con
     if (!tree->ScenarioStep)
         return false;
 
-    ScenarioStepEntry const* step = _data->Steps.at(_step);
-    if (tree->ScenarioStep->ScenarioID != step->ScenarioID)
-        return false;
+    std::map<uint8, ScenarioStepEntry const*>::const_iterator itr = _data->Steps.find(_step);
+    if (itr != _data->Steps.end())
+    {
+        if (tree->ScenarioStep->ScenarioID != itr->second->ScenarioID)
+            return false;
 
-    if (step->Step != tree->ScenarioStep->Step && !(tree->ScenarioStep->BonusStepFlag & SCENARIO_STEP_FLAG_BONUS_OBJECTIVE))
-        return false;
+        if (itr->second->Step != tree->ScenarioStep->Step && !(tree->ScenarioStep->BonusStepFlag & SCENARIO_STEP_FLAG_BONUS_OBJECTIVE))
+            return false;
 
-    return true;
+        return true;
+    }
+
+    return false;
 }
 
 bool Scenario::CanCompleteCriteriaTree(CriteriaTree const * tree)
@@ -214,35 +236,34 @@ bool Scenario::CanCompleteCriteriaTree(CriteriaTree const * tree)
     if (!tree->ScenarioStep)
         return false;
 
-    ScenarioStepEntry const* step = _data->Steps.at(_step);
-    if (tree->ScenarioStep->ScenarioID != step->ScenarioID)
-        return false;
+    std::map<uint8, ScenarioStepEntry const*>::const_iterator itr = _data->Steps.find(_step);
+    if (itr != _data->Steps.end())
+    {
+        if (tree->ScenarioStep->ScenarioID != itr->second->ScenarioID)
+            return false;
 
-    if (step->Step != tree->ScenarioStep->Step && !(tree->ScenarioStep->BonusStepFlag & SCENARIO_STEP_FLAG_BONUS_OBJECTIVE))
-        return false;
+        if (itr->second->Step != tree->ScenarioStep->Step && !(tree->ScenarioStep->BonusStepFlag & SCENARIO_STEP_FLAG_BONUS_OBJECTIVE))
+            return false;
 
-    return true;
+        return true;
+    }
+
+    return false;
 }
 
 void Scenario::CompletedCriteriaTree(CriteriaTree const * tree, Player * referencePlayer)
 {
-    if (!tree->ScenarioStep || _complete)
+    if (!tree->ScenarioStep || _complete || tree->ScenarioStep->Step != _step && !(tree->ScenarioStep->BonusStepFlag & SCENARIO_STEP_FLAG_BONUS_OBJECTIVE))
         return;
 
-    int8 step = tree->ScenarioStep->Step;
-    std::map<uint8, ScenarioStepEntry const*>::const_iterator itr = _data->Steps.find(++step);
-    while (itr != _data->Steps.end())
-    {
-        if (!(itr->second->BonusStepFlag & SCENARIO_STEP_FLAG_BONUS_OBJECTIVE))
-            break;
-
-        itr = _data->Steps.find(++step);
-    }
-
-    _complete = itr == _data->Steps.end();
-    _step = itr == _data->Steps.end() ? 0 : step;
-    SendScenarioState();
-    SendPacket(WorldPackets::Scenario::ScenarioCompleted(_data->Entry->ID).Write());
+    SetStep(_step + 1);
+    
+    //for (std::map<uint8, const ScenarioStepEntry*>::const_iterator itr = _data->Steps.begin(); itr != _data->Steps.end(); ++itr)
+    //{
+    //    CriteriaTree const* tree = sCriteriaMgr->GetCriteriaTree(itr->second->CriteriaTreeID);
+    //    if (!IsCompletedCriteriaTree(tree))
+    //        return;
+    //}
 }
 
 void Scenario::SendPacket(WorldPacket const * data) const

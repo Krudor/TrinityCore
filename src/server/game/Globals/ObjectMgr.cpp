@@ -5281,15 +5281,6 @@ InstanceMapData const* ObjectMgr::GetInstanceMapData(uint32 mapId, uint8 difficu
     return diffItr->second;
 }
 
-ChallengeModeData const* ObjectMgr::GetChallengeModeData(uint32 challengeModeId)
-{
-    ChallengeModeInfo::const_iterator itr = _challengeModeInfo.find(challengeModeId);
-    if (itr == _challengeModeInfo.end())
-        return NULL;
-
-    return itr->second;
-}
-
 void ObjectMgr::LoadInstanceEncounters()
 {
     uint32 oldMSTime = getMSTime();
@@ -5388,8 +5379,8 @@ void ObjectMgr::LoadInstanceMapData()
 {
     uint32 oldMSTime = getMSTime();
 
-    //                                                 0        1            2        3          4
-    QueryResult result = WorldDatabase.Query("SELECT entry, difficulty, entranceId, exitId, graveyardId FROM instance_data ORDER BY entry, difficulty");
+    //                                                 0        1            2           3         4               5
+    QueryResult result = WorldDatabase.Query("SELECT entry, difficulty, entranceId, graveyardId, exitId, useEntranceAsGraveyard FROM instance_data ORDER BY entry, difficulty");
     if (!result)
     {
         TC_LOG_ERROR("server.loading", ">> Loaded 0 map data records, table is empty!");
@@ -5402,13 +5393,13 @@ void ObjectMgr::LoadInstanceMapData()
         Field* fields = result->Fetch();
         uint32 entry = fields[0].GetUInt16();
         uint8 difficulty = fields[1].GetUInt8();
+        uint32 entranceId = fields[2].GetUInt16();
+        uint32 graveyardId = fields[3].GetUInt16();
+        uint32 exitId = fields[4].GetUInt16();
+        bool useEntranceAsGraveyard = fields[5].GetBool();
 
         // This requires the default difficulty (0) to be loaded before any other difficulties
         InstanceMapData const* defaultData = GetInstanceMapData(entry, 0);
-
-        uint32 entranceId = fields[2].GetUInt16();
-        uint32 exitId = fields[3].GetUInt16();
-        uint32 graveyardId = fields[4].GetUInt16();
 
         if (!sMapStore.LookupEntry(entry))
         {
@@ -5422,84 +5413,58 @@ void ObjectMgr::LoadInstanceMapData()
             continue;
         }
 
-        if (!entranceId && defaultData && defaultData->EntranceId)
-            entranceId = defaultData->EntranceId;
-
-        if (entranceId && !sWorldSafeLocsStore.LookupEntry(entranceId))
+        WorldSafeLocsEntry const* entrance = nullptr;
+        if (!entranceId && defaultData && defaultData->Entrance)
+            entrance = defaultData->Entrance;
+        else if (entranceId)
         {
-            TC_LOG_ERROR("sql.sql", "Table `instance_data` has an invalid entrance id %u, setting value to 0!", entranceId);
-            entranceId = 0;
+            entrance = sWorldSafeLocsStore.LookupEntry(entranceId);
+            if (!entrance)
+            {
+                TC_LOG_ERROR("sql.sql", "Table `instance_data` has an invalid entrance id %u, setting value to 0!", entranceId);
+                entranceId = 0;
+            }
         }
 
-        if (!exitId && defaultData && defaultData->ExitId)
-            exitId = defaultData->ExitId;
-
-        if (exitId && !sWorldSafeLocsStore.LookupEntry(exitId))
+        WorldSafeLocsEntry const* graveyard = nullptr;
+        if (useEntranceAsGraveyard)
+            graveyard = entrance;
+        else if (!graveyardId && defaultData && defaultData->Graveyard)
+            graveyard = defaultData->Graveyard;
+        else if (graveyardId)
         {
-            TC_LOG_ERROR("sql.sql", "Table `instance_data` has an invalid exit id %u, setting value to 0!", exitId);
-            exitId = 0;
+            graveyard = sWorldSafeLocsStore.LookupEntry(graveyardId);
+            if (!graveyard)
+            {
+                TC_LOG_ERROR("sql.sql", "Table `instance_data` has an invalid graveyard id %u, setting value to 0!", graveyardId);
+                graveyardId = 0;
+            }
         }
 
-        if (!graveyardId && defaultData && defaultData->GraveyardId)
-            graveyardId = defaultData->GraveyardId;
-
-        if (graveyardId && !sWorldSafeLocsStore.LookupEntry(graveyardId))
+        WorldSafeLocsEntry const* exit = nullptr;
+        if (!exitId && defaultData && defaultData->Exit)
+            exit = defaultData->Exit;
+        else if (exitId)
         {
-            TC_LOG_ERROR("sql.sql", "Table `instance_data` has an invalid graveyard id %u, setting value to 0!", graveyardId);
-            graveyardId = 0;
+            exit = sWorldSafeLocsStore.LookupEntry(exitId);
+            if (!exit)
+            {
+                TC_LOG_ERROR("sql.sql", "Table `instance_data` has an invalid exit id %u, setting value to 0!", exitId);
+                exitId = 0;
+            }
         }
 
         InstanceMapData* data = new InstanceMapData();
-        data->EntranceId = entranceId;
-        data->ExitId = exitId;
-        data->GraveyardId = graveyardId;
+        data->Entrance = entrance;
+        data->Graveyard = graveyard;
+        data->Exit = exit;
+        data->UseEntranceAsGraveyard = useEntranceAsGraveyard;
         _instanceMapInfo[entry][difficulty] = data;
 
         ++count;
     } while (result->NextRow());
 
     TC_LOG_INFO("server.loading", ">> Loaded %u instance data in %u ms", count, GetMSTimeDiffToNow(oldMSTime));
-}
-
-void ObjectMgr::LoadChallengeModeData()
-{
-    uint32 oldMSTime = getMSTime();
-
-    //                                                 0          1
-    QueryResult result = WorldDatabase.Query("SELECT entry, outofboundsID FROM challenge_mode_data");
-    if (!result)
-    {
-        TC_LOG_ERROR("server.loading", ">> Loaded 0 challenge mode data records, table is empty!");
-        return;
-    }
-
-    uint32 count = 0;
-    do
-    {
-        Field* fields = result->Fetch();
-        uint32 entry = fields[0].GetUInt16();
-        uint32 outOfBoundsId = fields[1].GetUInt16();
-
-        if (!sMapChallengeModeStore.LookupEntry(entry))
-        {
-            TC_LOG_ERROR("sql.sql", "Table `challenge_mode_data` column 'entry' (%u) is not a valid MapChallengMode.db2 id, skipped!", entry);
-            continue;
-        }
-
-        if (outOfBoundsId && !sAreaTriggerStore.LookupEntry(outOfBoundsId))
-        {
-            TC_LOG_ERROR("sql.sql", "Table `challenge_mode_data` column 'outofboundsID' (%u) is not a valid AreaTrigger.dbc id, setting value to 0!", outOfBoundsId);
-            outOfBoundsId = 0;
-        }
-
-        ChallengeModeData* data = new ChallengeModeData();
-        data->OutOfBoundsId = outOfBoundsId;
-        _challengeModeInfo[entry] = data;
-
-        ++count;
-    } while (result->NextRow());
-
-    TC_LOG_INFO("server.loading", ">> Loaded %u challenge mode data in %u ms", count, GetMSTimeDiffToNow(oldMSTime));
 }
 
 NpcText const* ObjectMgr::GetNpcText(uint32 Text_ID) const
