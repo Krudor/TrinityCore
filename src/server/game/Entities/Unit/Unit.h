@@ -1915,6 +1915,7 @@ class TC_GAME_API Unit : public WorldObject
         void SetCurrentCastSpell(Spell* pSpell);
         void InterruptSpell(CurrentSpellTypes spellType, bool withDelayed = true, bool withInstant = true);
         void FinishSpell(CurrentSpellTypes spellType, bool ok = true);
+        bool CanMoveWhileCasting();
 
         // set withDelayed to true to account delayed spells as cast
         // delayed+channeled spells are always accounted as cast

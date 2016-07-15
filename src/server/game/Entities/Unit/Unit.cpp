@@ -2853,6 +2853,27 @@ void Unit::FinishSpell(CurrentSpellTypes spellType, bool ok /*= true*/)
     spell->finish(ok);
 }
 
+bool Unit::CanMoveWhileCasting()
+{
+    if (Spell* genericSpell = GetCurrentSpell(CURRENT_GENERIC_SPELL))
+    {
+        if (SpellInfo const* spellInfo = genericSpell->GetSpellInfo())
+            if (spellInfo->InterruptFlags & SPELL_INTERRUPT_FLAG_MOVEMENT && !HasAuraTypeWithAffectMask(SPELL_AURA_CAST_WHILE_WALKING, spellInfo))
+                return false;
+    }
+    else if (Spell* channeledSpell = GetCurrentSpell(CURRENT_CHANNELED_SPELL))
+        if (SpellInfo const* spellInfo = channeledSpell->GetSpellInfo())
+            if (channeledSpell->IsChannelActive())
+            {
+                if (spellInfo->ChannelInterruptFlags & AURA_INTERRUPT_FLAG_MOVE && !HasAuraTypeWithAffectMask(SPELL_AURA_CAST_WHILE_WALKING, spellInfo))
+                    return false;
+            }
+            else if (spellInfo->InterruptFlags & SPELL_INTERRUPT_FLAG_MOVEMENT && !HasAuraTypeWithAffectMask(SPELL_AURA_CAST_WHILE_WALKING, spellInfo))
+                return false;
+
+    return true;
+}
+
 bool Unit::IsNonMeleeSpellCast(bool withDelayed, bool skipChanneled, bool skipAutorepeat, bool isAutoshoot, bool skipInstant) const
 {
     // We don't do loop here to explicitly show that melee spell is excluded.

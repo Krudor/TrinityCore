@@ -26,6 +26,7 @@
 #include "MoveSpline.h"
 #include "Player.h"
 #include "VehicleDefines.h"
+#include "Spell.h"
 
 template<class T, typename D>
 void TargetedMovementGeneratorMedium<T, D>::_setTargetLocation(T* owner, bool updateDestination)
@@ -34,6 +35,9 @@ void TargetedMovementGeneratorMedium<T, D>::_setTargetLocation(T* owner, bool up
         return;
 
     if (owner->HasUnitState(UNIT_STATE_NOT_MOVE))
+        return;
+
+    if (!owner->CanMoveWhileCasting())
         return;
 
     if (owner->GetTypeId() == TYPEID_UNIT && !i_target->isInAccessiblePlaceFor(owner->ToCreature()))
@@ -138,8 +142,8 @@ bool TargetedMovementGeneratorMedium<T, D>::DoUpdate(T* owner, uint32 time_diff)
         return true;
     }
 
-    // prevent movement while casting spells with cast time or channel time
-    if (owner->HasUnitState(UNIT_STATE_CASTING))
+    // prevent movement while casting spells that are interrupted by moving
+    if (!owner->CanMoveWhileCasting())
     {
         if (!owner->IsStopped())
             owner->StopMoving();
