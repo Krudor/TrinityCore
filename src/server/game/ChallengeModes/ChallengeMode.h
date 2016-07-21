@@ -88,12 +88,11 @@ class ElapsedTimers
 class TC_GAME_API ChallengeMode
 {
     public:
-        explicit ChallengeMode::ChallengeMode(Map* map);
+        explicit ChallengeMode::ChallengeMode(Map* map, ChallengeModeData const* data);
 
         virtual ~ChallengeMode() { }
 
         Map* _instance;
-        MapChallengeModeEntry const* _entry;
         ChallengeModeData const* _data;
 
     public:

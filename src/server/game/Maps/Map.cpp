@@ -2823,11 +2823,11 @@ WorldSafeLocsEntry const* InstanceMap::GetEntrancePos()
             return entrance;
 
     InstanceSave* mapSave = sInstanceSaveMgr->GetInstanceSave(GetInstanceId());
-    if (!mapSave || !mapSave->GetEntranceLocationId())
+    if (!mapSave || !mapSave->GetEntranceLocationId() && m_data)
         return m_data->Entrance;
 
     WorldSafeLocsEntry const* entrance = sWorldSafeLocsStore.LookupEntry(mapSave->GetEntranceLocationId());
-    if (!entrance)
+    if (!entrance && m_data)
     {
         TC_LOG_ERROR("map.instance", "InstanceSave specified a specific entrance location (Id: %u), but that WorldSafeLocsEntry does not exist!", mapSave->GetEntranceLocationId());
         return m_data->Entrance;

@@ -45,86 +45,56 @@ struct ScenarioData
     std::map<uint8, ScenarioStepEntry const*> Steps;
 };
 
-class ScenarioWaveGroup
-{
-    public:
-        ScenarioWaveGroup(ScenarioDifficulty difficulty, std::vector<uint32> waves, bool repeat);
-
-        uint32 GetDifficulty() { return uint32(_difficulty); }
-        uint32 GetWavesCount() { return _waves.size(); }
-        uint32 GetCurrentWave() { return _currentWave; }
-        void SetCurrentWave(uint32 wave) { _currentWave = wave; }
-
-        uint32 GetWaveTime(uint32 wave)
-        {
-            return _waves.at((wave - 1) % _waves.size());
-        }
-
-        bool IsRepeating() { return _repeat; }
-
-    private:
-        ScenarioDifficulty _difficulty;
-        std::vector<uint32 /*seconds*/> _waves;
-        bool _repeat;
-        uint32 _currentWave;
-};
-
 class Scenario : public CriteriaHandler
 {
     public:
-        Scenario(Map* map, ScenarioData const* scenarioData);
-        ~Scenario();
+        Scenario(ScenarioData const* scenarioData);
+        ~Scenario() { }
 
-        void Reset() override;
+        virtual void Reset() override;
 
-        void OnSpellCriteria(Criteria const* criteria, Unit const* caster);
+        virtual void CompleteStep(uint8 step);
+        virtual void CompleteScenario();
+        
+        virtual void OnPlayerEnter(Player* player) { m_players.insert(player->GetGUID()); }
+        virtual void OnPlayerExit(Player* player) { m_players.erase(player->GetGUID()); }
+        virtual void Update(uint32) { }
 
+        void SendScenarioState();
         void SendScenarioState(Player* player);
-        void OnPlayerEnter(Player* player) const;
-		void OnPlayerExit(Player* player) const;
-        bool IsComplete() { return _complete; }
+        bool IsComplete() const { return _complete; }
 
-        void SaveToDB();
-        void LoadInstanceData(uint32 instanceId);
+    protected:
+        GuidSet m_players;
 
-        void Update(uint32 diff);
+        void SendCriteriaUpdate(Criteria const* criteria, CriteriaProgress const* progress, uint32 timeElapsed, bool timedCompleted) const override;
+        void SendCriteriaProgressRemoved(uint32 criteriaId) override;
 
-        ChallengeMode* GetChallengeMode() { return challengeMode; }
+        bool CanUpdateCriteriaTree(Criteria const* criteria, CriteriaTree const* tree, Player* referencePlayer) const override;
+        bool CanCompleteCriteriaTree(CriteriaTree const* tree) override;
+        void CompletedCriteriaTree(CriteriaTree const* tree, Player* referencePlayer) override;
+        void AfterCriteriaTreeUpdate(CriteriaTree const* /*tree*/, Player* /*referencePlayer*/) override { }
 
-protected:
-    void SendAllData(Player const* receiver) const override;
+        void SendPacket(WorldPacket const* data) const override;
 
-    void SendCriteriaUpdate(Criteria const* criteria, CriteriaProgress const* progress, uint32 timeElapsed, bool timedCompleted) const override;
-    void SendCriteriaProgressRemoved(uint32 criteriaId) override;
+        void BuildScenarioState(WorldPackets::Scenario::ScenarioState* scenarioState);
 
-    bool CanUpdateCriteriaTree(Criteria const* criteria, CriteriaTree const* tree, Player* referencePlayer) const override;
-    bool CanCompleteCriteriaTree(CriteriaTree const* tree) override;
-    void CompletedCriteriaTree(CriteriaTree const* tree, Player* referencePlayer) override;
-    void AfterCriteriaTreeUpdate(CriteriaTree const* /*tree*/, Player* /*referencePlayer*/) override { }
+        std::vector<WorldPackets::Scenario::BonusObjectiveData> GetBonusObjectivesData();
+        std::vector<WorldPackets::Scenario::CriteriaProgress> GetCriteriasProgress();
 
-    void SendPacket(WorldPacket const* data) const override;
+        std::string GetOwnerInfo() const override;
+        CriteriaList const& GetCriteriaByType(CriteriaTypes type) const override;
+        ScenarioData const* _data;
 
-    void BuildScenarioState(WorldPackets::Scenario::ScenarioState* scenarioState);
+    private:
+        void SendToPlayers(WorldPacket const* data) const;
+        void SetStep(int8 step);
+        void Boot(Player* player);
+        int8 _step;
+        int8 _lastStep;
+        bool _complete;
 
-    std::vector<WorldPackets::Scenario::BonusObjectiveData> GetBonusObjectivesData();
-    std::vector<WorldPackets::Scenario::CriteriaProgress> GetCriteriasProgress();
-
-    std::string GetOwnerInfo() const override;
-    CriteriaList const& GetCriteriaByType(CriteriaTypes type) const override;
-    Map* _map;
-    ScenarioData const* _data;
-    ScenarioWaveGroup* waveGroup;
-    ChallengeMode* challengeMode;
-
-private:
-    void SendScenarioState();
-    void SetStep(int8 step);
-    void CompleteScenario();
-    void Boot(Player* player);
-    //std::map<uint8, CriteriaProgressMap> StepsCriteriaProgress;
-    int8 _step;
-    int8 _lastStep;
-    bool _complete;
+        void SendAllData(Player const* receiver) const override;
 };
 
 #endif

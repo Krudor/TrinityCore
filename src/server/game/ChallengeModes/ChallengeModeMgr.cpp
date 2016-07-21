@@ -117,7 +117,8 @@ void ChallengeModeMgr::LoadChallengeModeData()
         uint32 realmBestAchievement = fields[11].GetUInt32();
         uint32 realmBestTemporaryTitle = fields[12].GetUInt32();
 
-        if (!sMapChallengeModeStore.LookupEntry(entry))
+        MapChallengeModeEntry const* challengeModeEntry = GetChallengeModeEntry(entry);
+        if (!challengeModeEntry)
         {
             TC_LOG_ERROR("sql.sql", "Table `challenge_mode_data` column 'entry' (%u) is not a valid MapChallengMode.db2 id, skipped!", entry);
             continue;
@@ -210,6 +211,7 @@ void ChallengeModeMgr::LoadChallengeModeData()
         }
 
         ChallengeModeData* data = new ChallengeModeData();
+        data->Entry = challengeModeEntry;
         data->QuestRewards[CM_MEDAL_NONE] = consolidationReward;
         data->QuestRewards[CM_MEDAL_BRONZE] = bronzeReward;
         data->QuestRewards[CM_MEDAL_SILVER] = silverReward;
@@ -218,7 +220,7 @@ void ChallengeModeMgr::LoadChallengeModeData()
         data->TeleportSpellReward = spellReward;
         data->RealmBestAchievement = achievement;
         data->RealmBestTitleReward = title;
-        _challengeModeData[entry] = data;
+        _challengeModeData[challengeModeEntry->MapID] = data;
 
         ++count;
     } while (result->NextRow());
@@ -226,21 +228,33 @@ void ChallengeModeMgr::LoadChallengeModeData()
     TC_LOG_INFO("server.loading", ">> Loaded %u challenge mode data in %u ms", count, GetMSTimeDiffToNow(oldMSTime));
 }
 
-ChallengeModeData const* ChallengeModeMgr::GetChallengeModeData(uint32 challengeModeId)
+ChallengeModeData const* ChallengeModeMgr::GetChallengeModeData(uint32 mapId)
 {
-    ChallengeModeInfo::const_iterator itr = _challengeModeData.find(challengeModeId);
+    ChallengeModeInfo::const_iterator itr = _challengeModeData.find(mapId);
     if (itr == _challengeModeData.end())
         return nullptr;
 
     return itr->second;
 }
 
-MapChallengeModeEntry const* ChallengeModeMgr::GetChallengeModeEntry(uint32 mapId) const
+ChallengeMode* ChallengeModeMgr::CreateChallengeMode(Map * map)
+{
+    if (!map || map->GetDifficultyID() != DIFFICULTY_CHALLENGE)
+        return nullptr;
+
+    ChallengeModeData const* data = GetChallengeModeData(map->GetEntry()->ID);
+    if (!data)
+        return nullptr;
+
+    return new ChallengeMode(map, data);
+}
+
+MapChallengeModeEntry const* ChallengeModeMgr::GetChallengeModeEntry(uint32 id) const
 {
     for (uint32 i = 0; i < sMapChallengeModeStore.GetNumRows(); ++i)
     {
         MapChallengeModeEntry const* entry = sMapChallengeModeStore.LookupEntry(i);
-        if (!entry || entry->MapID != mapId)
+        if (!entry || entry->ID != id)
             continue;
 
         return entry;
@@ -255,9 +269,12 @@ void ChallengeModeMgr::BuildMapStatsResult(WorldPackets::ChallengeMode::Challeng
     {
         if (!map.second.empty())
         {
+            WorldPackets::ChallengeMode::ChallengeModeMapStatsUpdate mapStatsUpdate;
+            BuildMapUpdateResult(mapStatsUpdate, receiver, map.first);
+
             std::pair<uint32, WorldPackets::ChallengeMode::ChallengeModeMapStats> mapStats;
             mapStats.first = map.first;
-            BuildMapUpdateResult(mapStats.second, receiver, map.first);
+            mapStats.second = mapStatsUpdate.MapStats;
             result.AllMapStats.insert(mapStats);
         }
     }
@@ -337,27 +354,27 @@ void ChallengeModeMgr::BuildRewardsResult(WorldPackets::ChallengeMode::Challenge
     }
 }
 
-void ChallengeModeMgr::BuildMapUpdateResult(WorldPackets::ChallengeMode::ChallengeModeMapStats& result, Player* receiver, uint32 map)
+void ChallengeModeMgr::BuildMapUpdateResult(WorldPackets::ChallengeMode::ChallengeModeMapStatsUpdate& result, Player* receiver, uint32 map)
 {
     std::list<WorldPackets::ChallengeMode::ChallengeModeGroup*> groups = _challengeModePlayerRecords[receiver->GetGUID()][map];
-    result.MapId = map;
+    result.MapStats.MapId = map;
 
     for (auto group : groups)
     {
-        if (!result.BestCompletionTime || result.BestCompletionTime > group->CompletionTime)
+        if (!result.MapStats.BestCompletionTime || result.MapStats.BestCompletionTime > group->CompletionTime)
         {
-            result.BestCompletionTime = group->CompletionTime;
-            result.BestCompletionDate = group->CompletionDate;
-            result.Medal = group->MedalEarned;
+            result.MapStats.BestCompletionTime = group->CompletionTime;
+            result.MapStats.BestCompletionDate = group->CompletionDate;
+            result.MapStats.Medal = group->MedalEarned;
 
-            result.Specs.clear();
+            result.MapStats.Specs.clear();
             for (auto player : group->Players)
-                result.Specs.push_back(player->SpecializationId);
+                result.MapStats.Specs.push_back(player->SpecializationId);
         }
-        if (!result.LastCompletionDate || result.LastCompletionDate < group->CompletionDate)
+        if (!result.MapStats.LastCompletionDate || result.MapStats.LastCompletionDate < group->CompletionDate)
         {
-            result.LastCompletionTime = group->CompletionTime;
-            result.LastCompletionDate = group->CompletionDate;
+            result.MapStats.LastCompletionTime = group->CompletionTime;
+            result.MapStats.LastCompletionDate = group->CompletionDate;
         }
     }
 }

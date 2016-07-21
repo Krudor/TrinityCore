@@ -39,7 +39,6 @@ struct ScenarioDBData
 {
     uint32 MapID;
     uint8 DifficultyID;
-    uint32 Scenario;
     uint32 Scenario_A;
     uint32 Scenario_H;
 };

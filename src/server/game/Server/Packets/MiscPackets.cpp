@@ -654,8 +654,8 @@ WorldPacket const* WorldPackets::Misc::DisplayGameError::Write()
 
 ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Misc::ElapsedTimer& elapsedTimer)
 {
-    data << elapsedTimer.TimerID;
-    data << elapsedTimer.CurrentDuration;
+    data << int32(elapsedTimer.TimerID);
+    data.AppendPackedTime(elapsedTimer.CurrentDuration);
     return data;
 }
 

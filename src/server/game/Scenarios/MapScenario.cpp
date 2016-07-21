@@ -16,15 +16,21 @@
  */
 
 #include "Scenario.h"
+#include "DBCStores.h"
+#include "DB2Store.h"
 #include "Player.h"
 #include "ScenarioMgr.h"
 #include "InstanceSaveMgr.h"
 #include "ChallengeModeMgr.h"
 #include "ObjectMgr.h"
 
-Scenario::Scenario(ScenarioData const* scenarioData) : _data(scenarioData), _step(-1), _lastStep(0), _complete(false)
+Scenario::Scenario(Map* map, ScenarioData const* scenarioData) : _map(map), _data(scenarioData), _complete(false), _lastStep(0)
 {
+    ASSERT(_map);
     ASSERT(_data);
+
+    LoadInstanceData(_map->GetInstanceId());
+    challengeMode = sChallengeModeMgr->CreateChallengeMode(_map);
 
     SendScenarioState();
 
@@ -38,11 +44,103 @@ Scenario::Scenario(ScenarioData const* scenarioData) : _data(scenarioData), _ste
             _lastStep = itr->second->Step;
 }
 
+void Scenario::SaveToDB()
+{
+    //if (_data->Entry->Flags & SCENARIO_ENTRY_FLAG_CHALLENGE_MODE)
+    //    return;
+
+    if (_criteriaProgress.empty())
+        return;
+
+    uint32 id = _map->GetInstanceId();
+    if (!id)
+    {
+        TC_LOG_DEBUG("scenario", "Scenario::SaveToDB: Can not save scenario progress without an instance save. Map::GetInstanceId() did not return an instance save.");
+        return;
+    }
+
+    for (auto iter = _criteriaProgress.begin(); iter != _criteriaProgress.end(); ++iter)
+    {
+        if (!iter->second.Changed)
+            continue;
+
+        PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_SCENARIO_INSTANCE_CRITERIA_BY_CRITERIA);
+        SQLTransaction trans = CharacterDatabase.BeginTransaction();
+
+        stmt->setUInt32(0, iter->first);
+        trans->Append(stmt);
+
+        if (iter->second.Counter)
+        {
+            stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_SCENARIO_INSTANCE_CRITERIA);
+            stmt->setUInt32(0, id);
+            stmt->setUInt32(1, iter->first);
+            stmt->setUInt64(2, iter->second.Counter);
+            stmt->setUInt32(3, uint32(iter->second.Date));
+            trans->Append(stmt);
+        }
+
+        iter->second.Changed = false;
+    }
+}
+
+void Scenario::LoadInstanceData(uint32 instanceId)
+{
+    PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_SCENARIO_INSTANCE_CRITERIA_FOR_INSTANCE);
+    stmt->setUInt32(0, instanceId);
+
+    PreparedQueryResult result = CharacterDatabase.Query(stmt);
+    if (result)
+    {
+        time_t now = time(NULL);
+        do
+        {
+            Field* fields = result->Fetch();
+            uint32 id = fields[0].GetUInt32();
+            uint64 counter = fields[1].GetUInt64();
+            time_t date = time_t(fields[2].GetUInt32());
+
+            Criteria const* criteria = sCriteriaMgr->GetCriteria(id);
+            if (!criteria)
+            {
+                // Removing non-existing criteria data for all instances
+                TC_LOG_ERROR("criteria.achievement", "Non-existing achievement criteria %u data has been removed from the table `instance_scenario_progress`.", id);
+
+                PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_INVALID_SCENARIO_INSTANCE_CRITERIA);
+                stmt->setUInt32(0, uint32(id));
+                CharacterDatabase.Execute(stmt);
+
+                continue;
+            }
+
+            if (criteria->Entry->StartTimer && time_t(date + criteria->Entry->StartTimer) < now)
+                continue;
+
+            CriteriaProgress& criteriaProgress = _criteriaProgress[id];
+            criteriaProgress.Counter = counter;
+            criteriaProgress.Date = date;
+        }
+        while (result->NextRow());
+
+        SendScenarioState();
+    }
+}
+
+void Scenario::Update(uint32 diff)
+{
+    if (challengeMode)
+        challengeMode->Update(diff);
+}
+
 void Scenario::Reset()
 {
     CriteriaHandler::Reset();
-    if (ScenarioStepEntry const* step = _data->Steps.at(0))
-        SetStep(step->Step);
+    _complete = false;
+    SetStep(0);
+}
+
+void Scenario::OnSpellCriteria(Criteria const * criteria, Unit const * caster)
+{
 }
 
 void Scenario::CompleteStep(uint8 step)
@@ -54,13 +152,35 @@ void Scenario::CompleteStep(uint8 step)
         return;
     }
 
-    if (!(itr->second->BonusStepFlag & SCENARIO_STEP_FLAG_BONUS_OBJECTIVE))
-        SetStep(itr->second->Step + 1);
+    CompleteStep(itr->second);
+}
 
-    if (Quest const* quest = sObjectMgr->GetQuestTemplate(itr->second->RewardQuest))
-        for (auto guid : m_players)
-            if (Player* player = ObjectAccessor::FindPlayer(guid))
-                player->RewardQuest(quest, 0, nullptr, false);
+void Scenario::CompleteStep(ScenarioStepEntry const* step)
+{
+    std::list<Player*> players;
+    Map::PlayerList const& playerList = _map->GetPlayers();
+    for (auto itr = playerList.begin(); itr != playerList.end(); ++itr)
+    {
+        if (Player* player = itr->GetSource())
+            if (Quest const* quest = quest = sObjectMgr->GetQuestTemplate(reward->firstQuest))
+
+    }
+}
+
+void Scenario::OnPlayerEnter(Player* player) const
+{
+    //WorldPackets::Scenario::ScenarioState scenarioState;
+    //BuildScenarioState(&scenarioState);
+    //player->SendDirectMessage(scenarioState.Write());
+    //
+    if (challengeMode)
+        challengeMode->OnPlayerEnter(player);
+}
+
+void Scenario::OnPlayerExit(Player* player) const
+{
+	if (challengeMode)
+		challengeMode->OnPlayerExit(player);
 }
 
 void Scenario::SetStep(int8 step)
@@ -68,8 +188,9 @@ void Scenario::SetStep(int8 step)
     _step = step;
     SendScenarioState();
 
-    if (_step > _lastStep && !IsComplete())
-        CompleteScenario();
+    if (_step > _lastStep)
+        if (!IsComplete())
+            CompleteScenario();
 }
 
 void Scenario::CompleteScenario()
@@ -79,6 +200,12 @@ void Scenario::CompleteScenario()
 
     _complete = true;
     SendPacket(WorldPackets::Scenario::ScenarioCompleted(_data->Entry->ID).Write());
+    if (challengeMode)
+        challengeMode->Complete();
+}
+
+void Scenario::SendAllData(Player const * receiver) const
+{
 }
 
 void Scenario::SendCriteriaUpdate(Criteria const * criteria, CriteriaProgress const * progress, uint32 timeElapsed, bool timedCompleted) const
@@ -96,31 +223,16 @@ void Scenario::SendCriteriaUpdate(Criteria const * criteria, CriteriaProgress co
     criteriaProgress.TimeCreate = 0;
 
     progressUpdate.criteriaProgress = criteriaProgress;
-    SendToPlayers(progressUpdate.Write());
+    _map->SendToPlayers(progressUpdate.Write());
 }
 
 void Scenario::SendCriteriaProgressRemoved(uint32 criteriaId)
 {
 }
 
-bool Scenario::CanUpdateCriteriaTree(Criteria const * /*criteria*/, CriteriaTree const * tree, Player * /*referencePlayer*/) const
+bool Scenario::CanUpdateCriteriaTree(Criteria const * /*criteria*/, CriteriaTree const * tree, Player * /*referencePlayer*/)
 {
-    if (!tree->ScenarioStep)
-        return false;
-
-    std::map<uint8, ScenarioStepEntry const*>::const_iterator itr = _data->Steps.find(_step);
-    if (itr != _data->Steps.end())
-    {
-        if (tree->ScenarioStep->ScenarioID != itr->second->ScenarioID)
-            return false;
-
-        if (itr->second->Step != tree->ScenarioStep->Step && !(tree->ScenarioStep->BonusStepFlag & SCENARIO_STEP_FLAG_BONUS_OBJECTIVE))
-            return false;
-
-        return true;
-    }
-
-    return false;
+    return CanCompleteCriteriaTree(tree);
 }
 
 bool Scenario::CanCompleteCriteriaTree(CriteriaTree const * tree)
@@ -148,13 +260,35 @@ void Scenario::CompletedCriteriaTree(CriteriaTree const * tree, Player * referen
     if (!tree->ScenarioStep || _complete)
         return;
 
-    CompleteStep(tree->ScenarioStep->Step);
+    if (tree->ScenarioStep->BonusStepFlag & SCENARIO_STEP_FLAG_BONUS_OBJECTIVE)
+        CompleteStep()
+
+    SetStep(_step + 1);
+    
+    //for (std::map<uint8, const ScenarioStepEntry*>::const_iterator itr = _data->Steps.begin(); itr != _data->Steps.end(); ++itr)
+    //{
+    //    CriteriaTree const* tree = sCriteriaMgr->GetCriteriaTree(itr->second->CriteriaTreeID);
+    //    if (!IsCompletedCriteriaTree(tree))
+    //        return;
+    //}
+}
+
+void Scenario::SendPacket(WorldPacket const * data) const
+{
+    _map->SendToPlayers(data);
 }
 
 void Scenario::BuildScenarioState(WorldPackets::Scenario::ScenarioState* scenarioState)
 {
     scenarioState->ScenarioId = _data->Entry->ID;
     scenarioState->CurrentStep = _step;
+    if (waveGroup)
+    {
+        scenarioState->DifficultyId = waveGroup->GetDifficulty();
+        scenarioState->WaveCurrent = waveGroup->GetCurrentWave();
+        scenarioState->WaveMax = waveGroup->GetWavesCount();
+        scenarioState->TimerDuration = waveGroup->GetWaveTime(waveGroup->GetCurrentWave());
+    }
     scenarioState->CriteriaProgress = GetCriteriasProgress();
     scenarioState->BonusObjectiveData = GetBonusObjectivesData();
     scenarioState->ScenarioCompleted = _complete;
@@ -222,18 +356,15 @@ void Scenario::Boot(Player* player)
     player->SendDirectMessage(WorldPackets::Scenario::ScenarioBoot().Write());
 }
 
-void Scenario::SendToPlayers(WorldPacket const* data) const
+ScenarioWaveGroup::ScenarioWaveGroup(ScenarioDifficulty difficulty, std::vector<uint32> waves, bool repeat) : _difficulty(difficulty), _waves(waves), _repeat(repeat)
 {
-    for (auto guid : m_players)
-        if (Player* player = ObjectAccessor::FindPlayer(guid))
-            player->SendDirectMessage(data);
 }
 
 void Scenario::SendScenarioState()
 {
     WorldPackets::Scenario::ScenarioState scenarioState;
     BuildScenarioState(&scenarioState);
-    SendToPlayers(scenarioState.Write());
+    _map->SendToPlayers(scenarioState.Write());
 }
 
 void Scenario::SendScenarioState(Player* player)

@@ -856,7 +856,7 @@ namespace WorldPackets
         struct ElapsedTimer
         {
             int32 TimerID = 0;
-            int32 CurrentDuration = 0;
+            time_t CurrentDuration = 0;
         };
 
         class StartElapsedTimer final : public WorldPackets::ServerPacket

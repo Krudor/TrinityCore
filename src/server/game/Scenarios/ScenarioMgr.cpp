@@ -46,13 +46,10 @@ Scenario* ScenarioMgr::CreateScenario(Map* map, Player* triggeringPlayer)
         return nullptr;
 
     uint32 scenarioID = 0;
-    if (triggeringPlayer->GetTeam() == TEAM_ALLIANCE)
+    if (triggeringPlayer->GetTeamId() == TEAM_ALLIANCE)
         scenarioID = scenarioData->Scenario_A;
-    else if (triggeringPlayer->GetTeam() == TEAM_HORDE)
+    else if (triggeringPlayer->GetTeamId() == TEAM_HORDE)
         scenarioID = scenarioData->Scenario_H;
-
-    if (scenarioData->Scenario)
-        scenarioID = scenarioData->Scenario;
 
     ScenarioDataContainer::iterator itr = _scenarioData.find(scenarioID);
     if (itr == _scenarioData.end())
@@ -70,7 +67,7 @@ void ScenarioMgr::LoadDBData()
 
     uint32 oldMSTime = getMSTime();
 
-    QueryResult result = WorldDatabase.Query("SELECT map, difficulty, scenario, scenario_A, scenario_H FROM scenarios");
+    QueryResult result = WorldDatabase.Query("SELECT map, difficulty, scenario_A, scenario_H FROM scenarios");
 
     if (!result)
     {
@@ -85,23 +82,16 @@ void ScenarioMgr::LoadDBData()
 
         uint32 mapId = fields[0].GetUInt32();
         uint8 difficulty = fields[1].GetUInt8();
-        uint32 scenarioId = fields[2].GetUInt32();
-        ScenarioDataContainer::iterator itr = _scenarioData.find(scenarioId);
-        if (scenarioId > 0 && itr == _scenarioData.end())
-        {
-            TC_LOG_ERROR("sql.sql", "ScenarioMgr::LoadDBData: DB Table `scenarios`, column scenario contained an invalid scenario (Id: %u)!", scenarioId);
-            continue;
-        }
 
-        uint32 scenarioAllianceId = fields[3].GetUInt32();
-        itr = _scenarioData.find(scenarioAllianceId);
+        uint32 scenarioAllianceId = fields[2].GetUInt32();
+        ScenarioDataContainer::iterator itr = _scenarioData.find(scenarioAllianceId);
         if (scenarioAllianceId > 0 && itr == _scenarioData.end())
         {
             TC_LOG_ERROR("sql.sql", "ScenarioMgr::LoadDBData: DB Table `scenarios`, column scenario_A contained an invalid scenario (Id: %u)!", scenarioAllianceId);
             continue;
         }
 
-        uint32 scenarioHordeId = fields[4].GetUInt32();
+        uint32 scenarioHordeId = fields[3].GetUInt32();
         itr = _scenarioData.find(scenarioHordeId);
         if (scenarioHordeId > 0 && itr == _scenarioData.end())
         {
@@ -109,10 +99,12 @@ void ScenarioMgr::LoadDBData()
             continue;
         }
 
+        if (scenarioHordeId == 0)
+            scenarioHordeId = scenarioAllianceId;
+
         ScenarioDBData* data = new ScenarioDBData();
         data->MapID = mapId;
         data->DifficultyID = difficulty;
-        data->Scenario = scenarioId;
         data->Scenario_A = scenarioAllianceId;
         data->Scenario_H = scenarioHordeId;
 

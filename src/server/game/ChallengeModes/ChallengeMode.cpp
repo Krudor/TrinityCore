@@ -22,6 +22,7 @@
 #include "InstanceScript.h"
 #include "SpellInfo.h"
 #include "ScriptedCreature.h"
+#include "Scenario.h"
 
 class InstanceResetWorker
 {
@@ -109,14 +110,8 @@ public:
     void Visit(std::unordered_map<ObjectGuid, T*>&) { }
 };
 
-ChallengeMode::ChallengeMode(Map* map) : _instance(map), _entry(nullptr), _data(nullptr), timeComplete(NULL), lastReset(NULL), _status(CM_STATUS_NOT_STARTED), _startedByTimer(false), elapsedTimerId(0), _elapsedTimers(NULL)
+ChallengeMode::ChallengeMode(Map* map, ChallengeModeData const* data) : _instance(map), _data(data), timeComplete(NULL), lastReset(NULL), _status(CM_STATUS_NOT_STARTED), _startedByTimer(false), elapsedTimerId(0), _elapsedTimers(nullptr)
 {
-    if (!map || map->GetDifficultyID() != DIFFICULTY_CHALLENGE)
-        return;
-
-    _entry = sChallengeModeMgr->GetChallengeModeEntry(map->GetEntry()->ID);
-    _data = sChallengeModeMgr->GetChallengeModeData(_entry->ID);
-
     _elapsedTimers = new ElapsedTimers(_instance);
 }
  
@@ -129,7 +124,7 @@ void ChallengeMode::Start()
 
     if (InstanceMap* instanceMap = _instance->ToInstanceMap())
         if (InstanceScript* instanceScript = instanceMap->GetInstanceScript())
-            instanceScript->OnChallengeModeStart(_entry);
+            instanceScript->OnChallengeModeStart(_data->Entry);
 
     std::list<Player*> players;
     Map::PlayerList const& playerlist = _instance->GetPlayers();
@@ -142,7 +137,7 @@ void ChallengeMode::Start()
     visitor.Visit(_instance->GetObjectsStore());
 
     WorldPackets::ChallengeMode::ChallengeModeStart packet;
-    packet.MapId = _entry->MapID;
+    packet.MapId = _data->Entry->MapID;
     _instance->SendToPlayers(packet.Write());
 
     elapsedTimerId = _elapsedTimers->CreateElapsedTimer();
@@ -201,7 +196,7 @@ void ChallengeMode::Reset(Player* source)
     if (InstanceMap* instanceMap = _instance->ToInstanceMap())
     {
         if (InstanceScript* instanceScript = instanceMap->GetInstanceScript())
-            instanceScript->OnChallengeModeReset(_entry, attemptTime);
+            instanceScript->OnChallengeModeReset(_data->Entry, attemptTime);
         if (Scenario* scenario = instanceMap->GetScenario())
             scenario->Reset();
     }
@@ -261,7 +256,7 @@ void ChallengeMode::Reset(Player* source)
     visitor.Visit(_instance->GetObjectsStore());
 
     WorldPackets::ChallengeMode::ChallengeModeReset reset;
-    reset.MapId = _entry->MapID;
+    reset.MapId = _data->Entry->MapID;
     _instance->SendToPlayers(reset.Write());
 }
 
@@ -275,7 +270,7 @@ void ChallengeMode::Complete()
 
     if (InstanceMap* instanceMap = _instance->ToInstanceMap())
         if (InstanceScript* instanceScript = instanceMap->GetInstanceScript())
-            instanceScript->OnChallengeModeComplete(_entry, medal);
+            instanceScript->OnChallengeModeComplete(_data->Entry, medal);
 
     ChallengeModeQuestReward const* questReward = _data->QuestRewards[medal];
 
@@ -316,18 +311,18 @@ void ChallengeMode::Complete()
 
         WorldPackets::ChallengeMode::ChallengeModeComplete challengeModeComplete;
         challengeModeComplete.Time = timeComplete;
-        challengeModeComplete.MapID = _entry->MapID;
+        challengeModeComplete.MapID = _data->Entry->MapID;
         challengeModeComplete.Medal = medal;
         challengeModeComplete.MoneyReward = moneyReward;
         player->SendDirectMessage(challengeModeComplete.Write());
 
         // Send new record updates if true
-        WorldPackets::ChallengeMode::ChallengeModeGroup const* record = sChallengeModeMgr->GetMapRecordForPlayer(_entry->MapID, player->GetGUID());
+        WorldPackets::ChallengeMode::ChallengeModeGroup const* record = sChallengeModeMgr->GetMapRecordForPlayer(_data->Entry->MapID, player->GetGUID());
         if (attemptId == record->AttemptId)
             player->SendDirectMessage(WorldPackets::ChallengeMode::ChallengeModeNewPlayerRecord(record).Write());
     }
 
-    WorldPackets::ChallengeMode::ChallengeModeGroup* realmBest = sChallengeModeMgr->GetRealmRecordForMap(_entry->MapID);
+    WorldPackets::ChallengeMode::ChallengeModeGroup* realmBest = sChallengeModeMgr->GetRealmRecordForMap(_data->Entry->MapID);
     if (!realmBest || realmBest->AttemptId == attemptId)
     {
         for (auto itr = playerlist.begin(); itr != playerlist.end(); ++itr)
@@ -353,7 +348,8 @@ void ChallengeMode::OnPlayerEnter(Player * player) const
     // Move implementation to Scenario?
     WorldPackets::Misc::StartElapsedTimers startElapsedTimers;
     _elapsedTimers->BuildElapsedTimers(&startElapsedTimers);
-    player->SendDirectMessage(startElapsedTimers.Write());
+    if (!startElapsedTimers.ElapsedTimers.empty())
+        player->SendDirectMessage(startElapsedTimers.Write());
 }
 
 void ChallengeMode::OnPlayerExit(Player* player) const
@@ -363,7 +359,7 @@ void ChallengeMode::OnPlayerExit(Player* player) const
 
 void ChallengeMode::HandleAreaTrigger(Player * source, uint32 trigger, bool entered)
 {
-    if (trigger == _data->OutOfBoundsId && !entered)
+    if (_data && trigger == _data->OutOfBoundsId && !entered)
         OnPlayerOutOfBounds(source);
 }
 
@@ -391,13 +387,13 @@ uint32 ChallengeMode::GetMedal(uint32 timeInMilliseconds) const
 {
     ChallengeModeMedals medal = CM_MEDAL_NONE;
 
-    if (_entry)
+    if (_data->Entry)
     {
-        if (timeInMilliseconds <= _entry->GoldTime * IN_MILLISECONDS)
+        if (timeInMilliseconds <= _data->Entry->GoldTime * IN_MILLISECONDS)
             medal = CM_MEDAL_GOLD;
-        else if (timeInMilliseconds <= _entry->SilverTime * IN_MILLISECONDS)
+        else if (timeInMilliseconds <= _data->Entry->SilverTime * IN_MILLISECONDS)
             medal = CM_MEDAL_SILVER;
-        else if (timeInMilliseconds <= _entry->BronzeTime * IN_MILLISECONDS)
+        else if (timeInMilliseconds <= _data->Entry->BronzeTime * IN_MILLISECONDS)
             medal = CM_MEDAL_BRONZE;
     }
 
@@ -415,7 +411,7 @@ uint32 ChallengeMode::SaveAttemptToDb() const
     group->AttemptId = sChallengeModeMgr->GenerateAttemptId();
     group->CompletionTime = timeComplete;
     group->CompletionDate = sWorld->GetGameTime();
-    group->MapId = _entry->MapID;
+    group->MapId = _data->Entry->MapID;
     group->MedalEarned = GetMedal(timeComplete);
 
     SQLTransaction trans = CharacterDatabase.BeginTransaction();
@@ -446,7 +442,7 @@ uint32 ChallengeMode::SaveAttemptToDb() const
 
     PreparedStatement* attemptStmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_CHALLENGE_MODE_GROUP);
     attemptStmt->setUInt32(0, group->AttemptId);
-    attemptStmt->setUInt32(1, _entry->MapID);
+    attemptStmt->setUInt32(1, _data->Entry->MapID);
     attemptStmt->setUInt32(2, group->CompletionTime);
     attemptStmt->setUInt32(3, group->CompletionDate);
     attemptStmt->setUInt32(4, group->MedalEarned);
@@ -547,16 +543,17 @@ void ElapsedTimers::RemoveTimer(int32 id)
 
 void ElapsedTimers::BuildElapsedTimers(WorldPackets::Misc::StartElapsedTimers* startElapsedTimers)
 {
-    std::list<WorldPackets::Misc::ElapsedTimer> elapsedTimers;
+    startElapsedTimers->ElapsedTimers = std::list<WorldPackets::Misc::ElapsedTimer>();
+    if (Timers->empty())
+        return;
+
     for (auto timer : *Timers)
     {
         WorldPackets::Misc::ElapsedTimer elapsedTimer;
         elapsedTimer.TimerID = timer.first;
         elapsedTimer.CurrentDuration = timer.second;
-        elapsedTimers.push_back(elapsedTimer);
+        startElapsedTimers->ElapsedTimers.push_back(elapsedTimer);
     }
-
-    startElapsedTimers->ElapsedTimers = elapsedTimers;
 }
 
 int32 ElapsedTimers::CreateId()

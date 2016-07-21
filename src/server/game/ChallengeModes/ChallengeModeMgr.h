@@ -37,7 +37,7 @@ namespace WorldPackets
         class ChallengeModeRequestMapStatsResult;
         class ChallengeModeMapStatsUpdate;
         class ChallengeModeNewPlayerRecord;
-        class ChallengeModeMapStats;
+        class ChallengeModeMapStatsUpdate;
     }
 }
 
@@ -49,6 +49,7 @@ struct ChallengeModeQuestReward
 
 struct ChallengeModeData
 {
+    MapChallengeModeEntry const* Entry;
     uint32 OutOfBoundsId = 0;
     ChallengeModeQuestReward const* QuestRewards[CM_MEDAL_MAX];
     SpellEntry const* TeleportSpellReward;
@@ -130,7 +131,8 @@ public:
 
         return NULL;
     }
-    MapChallengeModeEntry const* GetChallengeModeEntry(uint32 mapId) const;
+    ChallengeMode* CreateChallengeMode(Map* map);
+    MapChallengeModeEntry const* GetChallengeModeEntry(uint32 id) const;
 
     void LoadChallengeModeRecords();
 
@@ -140,7 +142,7 @@ public:
     void BuildMapStatsResult(WorldPackets::ChallengeMode::ChallengeModeRequestMapStatsResult &result, Player* receiver);
     void BuildLeadersResult(WorldPackets::ChallengeMode::ChallengeModeRequestLeaders const* request, WorldPackets::ChallengeMode::ChallengeModeRequestLeadersResult &result, Player* receiver);
     void BuildRewardsResult(WorldPackets::ChallengeMode::ChallengeModeRewards &result);
-    void BuildMapUpdateResult(WorldPackets::ChallengeMode::ChallengeModeMapStats &result, Player* receiver, uint32 map);
+    void BuildMapUpdateResult(WorldPackets::ChallengeMode::ChallengeModeMapStatsUpdate &result, Player* receiver, uint32 map);
 
     std::list<WorldPackets::ChallengeMode::PlayerEntry*> LoadPlayersForAttempt(uint32 attemptId);
 

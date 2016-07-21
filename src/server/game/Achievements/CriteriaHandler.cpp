@@ -441,10 +441,8 @@ void CriteriaHandler::UpdateCriteria(CriteriaTypes type, uint64 miscValue1 /*= 0
 
         switch (type)
         {
-            case CRITERIA_TYPE_CAST_SPELL:
-                if (Scenario* scenario = dynamic_cast<Scenario*>(this))
-                    scenario->OnSpellCriteria(criteria, unit);
             // std. case: increment at 1
+            case CRITERIA_TYPE_CAST_SPELL:
             case CRITERIA_TYPE_NUMBER_OF_TALENT_RESETS:
             case CRITERIA_TYPE_LOSE_DUEL:
             case CRITERIA_TYPE_CREATE_AUCTION:
