@@ -1037,6 +1037,9 @@ bool GameObject::IsNeverVisible() const
     if (GetGoType() == GAMEOBJECT_TYPE_SPELL_FOCUS && GetGOInfo()->spellFocus.serverOnly == 1)
         return true;
 
+    if (!GetUInt32Value(GAMEOBJECT_DISPLAYID))
+        return true;
+
     return false;
 }
 
@@ -2058,8 +2061,8 @@ void GameObject::SetDestructibleState(GameObjectDestructibleState state, Player*
 
             uint32 modelId = m_goInfo->displayId;
             if (DestructibleModelDataEntry const* modelData = sDestructibleModelDataStore.LookupEntry(m_goInfo->destructibleBuilding.DestructibleModelRec))
-                if (modelData->StateDamaged.DisplayID)
-                    modelId = modelData->StateDamaged.DisplayID;
+                if (modelData->StateDamagedDisplayID)
+                    modelId = modelData->StateDamagedDisplayID;
             SetDisplayId(modelId);
 
             if (setHealth)
@@ -2086,8 +2089,8 @@ void GameObject::SetDestructibleState(GameObjectDestructibleState state, Player*
 
             uint32 modelId = m_goInfo->displayId;
             if (DestructibleModelDataEntry const* modelData = sDestructibleModelDataStore.LookupEntry(m_goInfo->destructibleBuilding.DestructibleModelRec))
-                if (modelData->StateDestroyed.DisplayID)
-                    modelId = modelData->StateDestroyed.DisplayID;
+                if (modelData->StateDestroyedDisplayID)
+                    modelId = modelData->StateDestroyedDisplayID;
             SetDisplayId(modelId);
 
             if (setHealth)
@@ -2105,8 +2108,8 @@ void GameObject::SetDestructibleState(GameObjectDestructibleState state, Player*
 
             uint32 modelId = m_goInfo->displayId;
             if (DestructibleModelDataEntry const* modelData = sDestructibleModelDataStore.LookupEntry(m_goInfo->destructibleBuilding.DestructibleModelRec))
-                if (modelData->StateRebuilding.DisplayID)
-                    modelId = modelData->StateRebuilding.DisplayID;
+                if (modelData->StateRebuildingDisplayID)
+                    modelId = modelData->StateRebuildingDisplayID;
             SetDisplayId(modelId);
 
             // restores to full health
@@ -2299,23 +2302,24 @@ void GameObject::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* t
     bool forcedFlags = GetGoType() == GAMEOBJECT_TYPE_CHEST && GetGOInfo()->chest.usegrouplootrules && HasLootRecipient();
     bool targetIsGM = target->IsGameMaster();
 
-    ByteBuffer fieldBuffer;
-
-    UpdateMask updateMask;
-    updateMask.SetCount(m_valuesCount);
+    std::size_t blockCount = UpdateMask::GetBlockCount(m_valuesCount);
 
     uint32* flags = GameObjectUpdateFieldFlags;
     uint32 visibleFlag = UF_FLAG_PUBLIC;
     if (GetOwnerGUID() == target->GetGUID())
         visibleFlag |= UF_FLAG_OWNER;
 
+    *data << uint8(blockCount);
+    std::size_t maskPos = data->wpos();
+    data->resize(data->size() + blockCount * sizeof(UpdateMask::BlockType));
+
     for (uint16 index = 0; index < m_valuesCount; ++index)
     {
         if (_fieldNotifyFlags & flags[index] ||
-            ((updateType == UPDATETYPE_VALUES ? _changesMask.GetBit(index) : m_uint32Values[index]) && (flags[index] & visibleFlag)) ||
+            ((updateType == UPDATETYPE_VALUES ? _changesMask[index] : m_uint32Values[index]) && (flags[index] & visibleFlag)) ||
             (index == GAMEOBJECT_FLAGS && forcedFlags))
         {
-            updateMask.SetBit(index);
+            UpdateMask::SetUpdateBit(data->contents() + maskPos, index);
 
             if (index == OBJECT_DYNAMIC_FLAGS)
             {
@@ -2352,8 +2356,8 @@ void GameObject::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* t
                         break;
                 }
 
-                fieldBuffer << uint16(dynFlags);
-                fieldBuffer << int16(pathProgress);
+                *data << uint16(dynFlags);
+                *data << int16(pathProgress);
             }
             else if (index == GAMEOBJECT_FLAGS)
             {
@@ -2362,14 +2366,14 @@ void GameObject::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* t
                     if (GetGOInfo()->chest.usegrouplootrules && !IsLootAllowedFor(target))
                         goFlags |= GO_FLAG_LOCKED | GO_FLAG_NOT_SELECTABLE;
 
-                fieldBuffer << goFlags;
+                *data << goFlags;
             }
             else if (index == GAMEOBJECT_LEVEL)
             {
                 if (isStoppableTransport)
-                    fieldBuffer << uint32(m_goValue.Transport.PathProgress);
+                    *data << uint32(m_goValue.Transport.PathProgress);
                 else
-                    fieldBuffer << m_uint32Values[index];
+                    *data << m_uint32Values[index];
             }
             else if (index == GAMEOBJECT_BYTES_1)
             {
@@ -2383,16 +2387,12 @@ void GameObject::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* t
                     }
                 }
 
-                fieldBuffer << bytes1;
+                *data << bytes1;
             }
             else
-                fieldBuffer << m_uint32Values[index];                // other cases
+                *data << m_uint32Values[index];                // other cases
         }
     }
-
-    *data << uint8(updateMask.GetBlockCount());
-    updateMask.AppendToPacket(data);
-    data->append(fieldBuffer);
 }
 
 void GameObject::GetRespawnPosition(float &x, float &y, float &z, float* ori /* = NULL*/) const
