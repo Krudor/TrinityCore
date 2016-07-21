@@ -20,7 +20,6 @@
 #define __SCENARIOMGR_H
 
 #include "AchievementMgr.h"
-#include "DBCStores.h"
 #include "DB2Stores.h"
 #include "Log.h"
 #include "Scenario.h"

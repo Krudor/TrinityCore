@@ -16,7 +16,6 @@
  */
 
 #include "Scenario.h"
-#include "DBCStores.h"
 #include "DB2Store.h"
 #include "Player.h"
 #include "ScenarioMgr.h"

@@ -23,20 +23,12 @@
 #include "CriteriaHandler.h"
 #include "ScenarioPackets.h"
 #include "ScenarioMgr.h"
+#include "Player.h"
 
 struct InstanceScenario
 {
     StringVector OptionText;
     StringVector BoxText;
-};
-
-enum ScenarioDifficulty
-{
-    SCENARIO_DIFFICULTY_NONE,
-    SCENARIO_DIFFICULTY_BRONZE,
-    SCENARIO_DIFFICULTY_SILVER,
-    SCENARIO_DIFFICULTY_GOLD,
-    SCENARIO_DIFFICULTY_ENDLESS
 };
 
 struct ScenarioData
