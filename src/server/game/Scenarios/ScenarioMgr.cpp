@@ -16,6 +16,7 @@
  */
 
 #include "ScenarioMgr.h"
+#include "DBCStores.h"
 #include "DB2Stores.h"
 #include "Timer.h"
 #include "Map.h"

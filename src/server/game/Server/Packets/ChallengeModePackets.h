@@ -66,7 +66,7 @@ namespace WorldPackets
             time_t LastUpdated = time_t(NULL);
         };
 
-        class ChallengeModeStart final : public ServerPacket
+        class ChallengeModeStart final : public WorldPackets::ServerPacket
         {
             public:
                 ChallengeModeStart() : ServerPacket(SMSG_CHALLENGE_MODE_START, 4) { }
@@ -76,7 +76,7 @@ namespace WorldPackets
                 uint32 MapId = 0;
         };
 
-        class ChallengeModeReset final : public ServerPacket
+        class ChallengeModeReset final : public WorldPackets::ServerPacket
         {
             public:
                 ChallengeModeReset() : ServerPacket(SMSG_CHALLENGE_MODE_RESET, 4) { }
@@ -98,7 +98,7 @@ namespace WorldPackets
                 uint32 LastGuildUpdate = 0;
         };
 
-        class ChallengeModeRequestLeadersResult final : public ServerPacket
+        class ChallengeModeRequestLeadersResult final : public WorldPackets::ServerPacket
         {
             public:
                 ChallengeModeRequestLeadersResult() : ServerPacket(SMSG_CHALLENGE_MODE_REQUEST_LEADERS_RESULT) { }
@@ -129,7 +129,7 @@ namespace WorldPackets
 			std::list<uint16> Specs;
 		};
 
-		class ChallengeModeRequestMapStatsResult final : public ServerPacket
+		class ChallengeModeRequestMapStatsResult final : public WorldPackets::ServerPacket
 		{
 			public:
 				ChallengeModeRequestMapStatsResult() : ServerPacket(SMSG_CHALLENGE_MODE_ALL_MAP_STATS) { }
@@ -139,7 +139,7 @@ namespace WorldPackets
 				std::map<uint32, ChallengeModeMapStats> AllMapStats;
 		};
 
-		class ChallengeModeMapStatsUpdate final : public ServerPacket
+		class ChallengeModeMapStatsUpdate final : public WorldPackets::ServerPacket
 		{
 			public:
                 ChallengeModeMapStatsUpdate() : ServerPacket(SMSG_CHALLENGE_MODE_MAP_STATS_UPDATE) { }
@@ -149,7 +149,7 @@ namespace WorldPackets
 				ChallengeModeMapStats MapStats;
 		};
 
-		class ChallengeModeNewPlayerRecord final : public ServerPacket
+		class ChallengeModeNewPlayerRecord final : public WorldPackets::ServerPacket
 		{
 			public:
 				ChallengeModeNewPlayerRecord(ChallengeModeGroup const* group) : ServerPacket(SMSG_CHALLENGE_MODE_NEW_PLAYER_RECORD)
@@ -186,7 +186,7 @@ namespace WorldPackets
             uint32 Quantity = 0;
         };
 
-        class ChallengeModeComplete final : public ServerPacket
+        class ChallengeModeComplete final : public WorldPackets::ServerPacket
         {
             public:
                 ChallengeModeComplete() : ServerPacket(SMSG_CHALLENGE_MODE_COMPLETE) { }
@@ -220,7 +220,7 @@ namespace WorldPackets
         class ChallengeModeRewards final : public ServerPacket
         {
             public:
-                ChallengeModeRewards() : ServerPacket(SMSG_CHALLENGE_MODE_REWARDS) { }
+                ChallengeModeRewards() : ServerPacket(SMSG_CHALLEGE_MODE_REWARDS) { }
 
                 WorldPacket const* Write() override;
 
