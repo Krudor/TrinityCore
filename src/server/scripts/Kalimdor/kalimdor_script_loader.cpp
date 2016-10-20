@@ -46,6 +46,9 @@ void AddSC_boss_mal_ganis();
 void AddSC_boss_meathook();
 void AddSC_culling_of_stratholme();
 void AddSC_instance_culling_of_stratholme();
+void AddSC_dragon_soul();                    //CoT Dragon Soul
+void AddSC_boss_spine_of_deathwing();
+void AddSC_instance_dragon_soul();
 void AddSC_instance_dire_maul();             //Dire Maul
 void AddSC_instance_ragefire_chasm();        //Ragefire Chasm
 void AddSC_boss_celebras_the_cursed();       //Maraudon
@@ -149,6 +152,9 @@ void AddKalimdorScripts()
     AddSC_boss_meathook();
     AddSC_culling_of_stratholme();
     AddSC_instance_culling_of_stratholme();
+    AddSC_dragon_soul();                    //CoT Dragon Soul
+    AddSC_boss_spine_of_deathwing();
+    AddSC_instance_dragon_soul();
     AddSC_instance_dire_maul();             //Dire Maul
     AddSC_instance_ragefire_chasm();        //Ragefire Chasm
     AddSC_boss_celebras_the_cursed();       //Maraudon

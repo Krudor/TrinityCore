@@ -1,0 +1,481 @@
+/*
+ * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#ifndef DRAGON_SOUL_H
+#define DRAGON_SOUL_H
+
+#define DSScriptName "instance_dragon_soul"
+#define ULTRAXION_TRASH_REQ_KILLS 15
+
+enum Data
+{
+    DATA_MORCHOK,
+    DATA_WARLORD_ZONOZZ,
+    DATA_YORSAHJ_THE_UNSLEEPING,
+    DATA_HAGARA_THE_STORMBINDER,
+    DATA_ULTRAXION,
+    DATA_WARMASTER_BLACKHORN,
+    DATA_SPINE_OF_DEATHWING,
+    DATA_MADNESS_OF_DEATHWING,
+
+    MAX_ENCOUNTER,
+
+	DATA_DS_BUFF_STATE,
+    DATA_SG_MORCHOK_EVENT_1,
+    DATA_SG_MORCHOK_EVENT_2,
+    DATA_DRAGON_SOUL_EVENT_PROGRESS,
+    DATA_ULTRAXION_TRASH,
+    DATA_DECK_DEFENDER,
+    DATA_DEATHWING_MOVEMENT,
+    DATA_SPINE_LOOTED,
+    DATA_EVENTS_UNFOLD_HAGARA,
+};
+
+enum DSData
+{
+    DATA_MOD_KALECGOS               = 8,
+    DATA_MOD_YSERA                  = 9,
+    DATA_MOD_NOZDORMU               = 10,
+    DATA_MOD_ALEXSTRASZA            = 11,
+    DATA_MOD_PLATFORM_KALEGOS       = 12,
+    DATA_MOD_PLATFORM_YSERA         = 13,
+    DATA_MOD_PLATFORM_NOZDORMU      = 14,
+    DATA_MOD_PLATFORM_ALEXSTRASZA   = 15,
+    DATA_MOD_DRAGON_SOUL            = 16,
+    DATA_MOD_KALECGOS_LIMB          = 17,
+    DATA_MOD_YSERA_LIMB             = 18,
+    DATA_MOD_NOZDORMU_LIMB          = 19,
+    DATA_MOD_ALEXSTRASZA_LIMB       = 20,
+    DATA_MOD_THRALL                 = 21,
+    DATA_C_B_TARGET_ONE             = 22,
+    DATA_C_B_TARGET_TWO             = 23,
+    DATA_C_B_TARGET_THREE           = 24,
+    DATA_C_B_TARGET_FOUR            = 25,
+    DATA_C_B_MAIN_TARGET            = 26,
+    DATA_SET_ASPECTS_REVEALED       = 27,
+    DATA_SPINE_LOOT                 = 28,
+    DATA_CHROMATIC_CHAMPION         = 29,
+    DATA_JUMP_PAD_Y_K               = 30,
+    DATA_JUMP_PAD_K_Y               = 31,
+    DATA_JUMP_PAD_N_Y               = 32,
+    DATA_JUMP_PAD_Y_N               = 33,
+    DATA_JUMP_PAD_A_N               = 34,
+    DATA_JUMP_PAD_N_A               = 35,
+
+    DATA_INSTANCE_PROGRESS          = 1000,
+};
+
+enum Creatures
+{
+    NPC_MORCHOK                     = 55265,
+    NPC_LORD_AFRASASTRASZ           = 55476,
+    NPC_IMAGE_OF_TYRAGOSA           = 57684,
+    NPC_ANCIENT_WATER_LORD          = 57160,
+    NPC_PURE_WATERS                 = 57206,
+    NPC_TWILIGHT_PORTAL             = 57231,
+    NPC_EARTHEN_SOLDIER             = 57159,
+
+    // Dragon Soul
+	NPC_LIFE_WARDEN					= 57473,
+	NPC_TIME_WARDEN					= 57474,
+	NPC_DREAM_WARDEN				= 57475,
+	NPC_HALO_JUMP_PARACHUTE_ZONOZZ	= 57629,
+	NPC_HALO_JUMP_PARACHUTE_YORSAHJ = 57629,
+
+    NPC_TRAVEL_TO_SKYFIRE           = 57378,
+    NPC_TRAVEL_TO_EYE_OF_ETERNITY   = 57377,
+    NPC_TRAVEL_TO_WYRMREST_TEMPLE   = 57328,
+    NPC_TRAVEL_TO_WYRMREST_SUMMIT   = 57379,
+    NPC_TRAVEL_TO_THE_MAELSTROM     = 57443,
+    NPC_TRAVEL_TO_WYRMREST_BASE     = 57882,
+
+    NPC_GENERAL_PURPOSE_DUMMY_JMF   = 55091,
+    NPC_DEATHWING = 55971,
+    NPC_NOZDORMU_WYRMREST_TEMPLE    = 56666,
+    NPC_YSERA_WYRMREST_TEMPLE       = 56665,
+    NPC_ALEXSTRASZA_WYRMREST_TEMPLE = 56630,
+    NPC_KALECGOS_WYRMREST_TEMPLE    = 56664,
+    NPC_THRALL_WYRMREST_TEMPLE      = 56667,
+    NPC_TARGET_DUMMY = 56126,
+    NPC_GENERAL_PURPOSE_BUNNY_JMF = 45979,
+    NPC_ULTRAXION_GAUNTLET = 56305,
+    NPC_FORCE_OF_DESTRUCTION = 56143,
+    NPC_PORTENT_OF_TWILIGHT = 56144,
+    NPC_HARBINGER_OF_DESTRUCTION = 55967,
+    NPC_HARBINGER_OF_TWILIGHT = 55969,
+    NPC_FACELESS_DESTROYER = 57746,
+    NPC_FACELESS_CORRUPTOR = 57749,
+    NPC_RUIN_TENTACLE = 57751,
+
+    NPC_CRYSTAL_CONDUCTOR = 56165,
+
+    NPC_TWILIGHT_ASSAULT_FIRE = 57281,
+    NPC_TWILIGHT_ASSAULTER_1 = 56249,
+    NPC_TWILIGHT_ASSAULTER_2 = 56250,
+    NPC_TWILIGHT_ASSAULTER_3 = 56251,
+    NPC_TWILIGHT_ASSAULTER_4 = 56252,
+    NPC_TWILIGHT_ASSAULTER_5 = 57795,
+    NPC_TWILIGHT_ASSAULTER_SMOKE_SCREEN = 58115,
+
+    NPC_ANDORGOS = 15502,
+    NPC_DRAGON_SOUL_WT = 56668,
+    NPC_DRAGON_SOUL = 56694,
+
+
+    NPC_SPINE_OF_DEATHWING = 53879,
+    NPC_SPAWNER         = 53888,
+    NPC_CORRUPTION      = 53891,
+    NPC_CORRUPTION_2    = 56161,
+    NPC_CORRUPTION_3    = 56162,
+    NPC_BURNING_TENDON_1 = 56341,
+    NPC_BURNING_TENDON_2 = 56575,
+    NPC_HIDEOUS_AMALGAMATION = 53890,
+    NPC_KAANU_REEVS = 55891,
+    NPC_SKY_CAPTAIN_SWAYZE = 55870,
+    NPC_SKYFIRE_DECKHAND = 57265,
+    NPC_SKYFIRE_COMMANDO = 57264,
+    NPC_GORIONA = 56781,
+    NPC_GUNSHIP_PURSUIT_CONTROLLER = 56599,
+    NPC_WARMASTER_BLACKHORN = 56427,
+    NPC_THE_SKYFIRE = 56598,
+    NPC_TWILIGHT_ASSAULT_DRAKE_1 = 56587,
+    NPC_TWILIGHT_ASSAULT_DRAKE_2 = 56855,
+    NPC_SKYFIRE_HARPOON_GUN = 56681,
+    NPC_SKYFIRE_CANNON = 57260,
+    NPC_TWILIGHT_INFILTRATOR = 56922,
+    NPC_ONSLAUGHT_TARGET = 57238,
+    NPC_MASSIVE_EXPLOSION = 57297,
+    NPC_FIRE_STALKER = 57852,
+	NPC_FIRE_BRIGADE_TARGET_STALKER = 58176,
+	NPC_DECK_FIRE_CONTROLLER = 57920,
+    NPC_ENGINE_STALKER = 57190,
+    NPC_TWILIGHT_ELITE_DREADBLADE = 56854,
+    NPC_TWILIGHT_ELITE_SLAYER = 56848,
+
+    // Madness of Deathwing
+    NPC_MADNESS_OF_DEATHWING = 56173,
+    NPC_RIGHT_ARM = 57686,
+    NPC_TENTACLE_COSMETIC = 57693,
+    NPC_LEFT_ARM = 57694,
+    NPC_RIGHT_WING = 57695,
+    NPC_LEFT_WING = 57696,
+    NPC_TAIL_TENTACLE = 56844,
+    NPC_MUTATED_CORRUPTION = 56471,
+
+
+    NPC_MOD_KALECGOS = 56101,
+    NPC_MOD_YSERA = 56100,
+    NPC_MOD_NOZDORMU = 56102,
+    NPC_MOD_ALEXSTRASZA = 56099,
+    NPC_MOD_THRALL = 56103,
+    NPC_KALECGOS_OUTRO = 58210,
+    NPC_YSERA_OUTRO = 58209,
+    NPC_NOZDORMU_OUTRO = 58208,
+    NPC_ALEXSTRASZA_OUTRO = 58207,
+    NPC_THRALL_OUTRO = 58232,
+    NPC_AGGRA_OUTRO = 58211,
+
+    NPC_PLATFORM = 56307,
+    NPC_JUMP_PAD = 56699,
+    NPC_WING_TENTACLE_10_N = 56168,
+    NPC_WING_TENTACLE_25_N = 57972,
+    NPC_WING_TENTACLE_10_H = 58129,
+    NPC_WING_TENTACLE_25_H = 58130,
+    NPC_ARM_TENTACLE_YSERA_10_N = 56167,
+    NPC_ARM_TENTACLE_YSERA_25_N = 57973,
+    NPC_ARM_TENTACLE_YSERA_10_H = 58131,
+    NPC_ARM_TENTACLE_YSERA_25_H = 58132,
+    NPC_ARM_TENTACLE_NOZDORMU_10_N = 56846,
+    NPC_ARM_TENTACLE_NOZDORMU_25_N = 57974,
+    NPC_ARM_TENTACLE_NOZDORMU_10_H = 58133,
+    NPC_ARM_TENTACLE_NOZDORMU_25_H = 58134,
+    NPC_TIME_ZONE = 56311,
+    NPC_TIME_ZONE_TARGET = 56332,
+    NPC_ELEMENTIUM_TERROR = 56710,
+    NPC_ELEMENTIUM_FRAGMENT = 56724,
+    NPC_REGENERATIVE_BLOOD = 56263,
+    NPC_CORRUPTING_PARASITE_10_N = 57479,
+    NPC_CORRUPTING_PARASITE_25_N = 58034,
+    NPC_CORRUPTING_PARASITE_10_H = 57479,
+    NPC_CORRUPTING_PARASITE_25_H = 58034,
+    NPC_CLAWK_MARK = 56545,
+    NPC_ELEMENTIUM_BOLT = 56262,
+    NPC_MADNESS_OF_DEATHWING_HEAD_10_N = 57962,
+    NPC_MADNESS_OF_DEATHWING_HEAD_25_N = 57970,
+    NPC_MADNESS_OF_DEATHWING_HEAD_10_H = 58125,
+    NPC_MADNESS_OF_DEATHWING_HEAD_25_H = 58126,
+    NPC_MOD_DRAGON_SOUL = 56694,
+    NPC_BLISTERING_TENTACLE_10_N = 56188,
+    NPC_BLISTERING_TENTACLE_25_N = 57978,
+    NPC_BLISTERING_TENTACLE_10_H = 58142,
+    NPC_BLISTERING_TENTACLE_25_H = 58143,
+    NPC_HEMORRHAGE_TARGET = 56359,
+    NPC_CONGEALING_BLOOD_TARGET = 57788,
+    NPC_CORRUPTING_PARASITE_TENTACLE = 57480,
+    NPC_CATACLYSM_STALKER = 56642,
+    NPC_TAIL_TENTACLE_TARGET = 56519,
+
+
+    // Other
+    NPC_PORTAL_WYRMREST_TEMPLE = 57328,
+    NPC_PORTAL_WYRMREST_SUMMIT = 57379,
+    NPC_PORTAL_EYE_OF_ETERNITY = 57377,
+    NPC_PORTAL_DECK_OF_THE_SKYFIRE = 57378,
+    NPC_PORTAL_WYRMREST_BASE = 57882,
+    NPC_PORTAL_THE_MAELSTROM = 57443,
+};
+
+enum Gameobjects
+{
+    // Hagara
+    GO_THE_FOCUSING_IRIS        = 210132,
+
+    // Spine of Deathwing
+    GO_DEATHWING_BACK_PLATE_1	= 209623,
+    GO_DEATHWING_BACK_PLATE_2	= 209631,
+    GO_DEATHWING_BACK_PLATE_3	= 209632,
+
+    // Madness of Deathwing
+    GO_ELEMENTIUM_FRAGMENT_1    = 210218,
+    GO_ELEMENTIUM_FRAGMENT_2    = 210220,
+    GO_ELEMENTIUM_FRAGMENT_3    = 210079,
+
+    // Other
+    GO_ALLIANCE_SHIP_1          = 210210,
+    GO_ALLIANCE_SHIP_2          = 210211,
+};
+
+enum DungeonPhases
+{
+    PHASE_DUNGEON_ALTERNATE = 173,
+};
+
+enum AchievementData
+{
+    CHROMATIC_CHAMPION_ALEXSTRASZA      = 18658,
+    CHROMATIC_CHAMPION_YSERA            = 18661,
+    CHROMATIC_CHAMPION_NOZDORMU         = 18660,
+    CHROMATIC_CHAMPION_KALECGOS         = 18659,
+};
+
+enum ClientObjectGUID
+{
+    CL_GUID_SKYFIRE = 6858573, //Not actual value, needs to be changed when TrinityCore moves off 4.3.4(15595)
+    CL_GUID_DEATHWING = 6574436 //Not actual value, needs to be changed when TrinityCore moves off 4.3.4(15595)
+};
+
+enum SharedSpells
+{
+    SPELL_TELEPORTER_ACTIVE             = 108203,
+    SPELL_ARCANE_CHANNELING             = 23017,
+    SPELL_FAIR_FAR_CLIP                 = 106786, //Maelstrom player aura to override distance view.
+    SPELL_MAX_FAR_CLIP_PLANE            = 106272, //Ship player aura to override distance view.
+    SPELL_PARACHUTE                     = 110660,
+    SPELL_SAFE_FALL                     = 69815, //Additional hidden aura added by blizzard hotfix.
+    SPELL_DEGRADATION                   = 106005,
+    SPELL_BLOOD_CORRUPTION_DEATH        = 106199,
+    SPELL_BLOOD_CORRUPTION_EARTH        = 106200,
+    SPELL_BLOOD_OF_NELTHARION           = 106213,
+    SPELL_PRESENCE_OF_THE_DRAGON_SOUL   = 109247,
+    SPELL_POWER_OF_THE_ASPECTS_5        = 109251,
+    SPELL_POWER_OF_THE_ASPECTS_10       = 109252,
+    SPELL_POWER_OF_THE_ASPECTS_15       = 109253,
+    SPELL_POWER_OF_THE_ASPECTS_20       = 109254,
+    SPELL_POWER_OF_THE_ASPECTS_25       = 109255,
+    SPELL_POWER_OF_THE_ASPECTS_30       = 109256,
+    SPELL_POWER_OF_THE_ASPECTS_35       = 109257,
+    SPELL_MADNESS_SKYBOX_SOOTHE         = 109480,
+
+};
+
+enum DragonSoulEventProgress
+{
+    EVENT_PROGRESS_NONE,
+    EVENT_PROGRESS_GENERALS,
+    EVENT_PROGRESS_HAGARA,
+    EVENT_PROGRESS_ULTRAXION,
+    EVENT_PROGRESS_GUNSHIP,
+    EVENT_PROGRESS_SPINE,
+    EVENT_PROGRESS_MADNESS,
+    EVENT_PROGRESS_DONE,
+    /*EVENT_PROGRESS_NONE,
+    EVENT_PROGRESS_MORCHOK_INTRO,
+    EVENT_PROGRESS_MORCHOK_END,
+    EVENT_PROGRESS_ASSAULT_GENERALS,
+    EVENT_PROGRESS_FIRST_GENERAL_DEAD,
+    EVENT_PROGRESS_HAGARA,
+    EVENT_PROGRESS_HAGARA_OUTRO,
+    EVENT_PROGRESS_ULTRAXION_INTRO,
+    EVENT_PROGRESS_ULTRAXION,
+    EVENT_PROGRESS_ULTRAXION_OUTRO,
+    EVENT_PROGRESS_SIEGE_ENDED,*/
+};
+
+enum SharedActions
+{
+    ACTION_MORCHOK_EVENT_1 = 1,
+    ACTION_MORCHOK_EVENT_2,
+    ACTION_MORCHOK_EVENT_3,
+    ACTION_MORCHOK_EVENT_4,
+};
+
+enum DSGossipMenus
+{
+	GOSSIP_WELCOME_ABOARD_THE_SKYFIRE	= 18953,
+	GOSSIP_WARMASTER_BLACKHORN			= 18740,
+	GOSSIP_SPINE_OF_DEATHWING			= 18698,
+    /*GOSSIP_DEFAULT = 21198,
+    GOSSIP_THRALL_ULTRAXION = 13322,
+    GOSSIP_WELCOME_ABOARD_THE_SKYFIRE = 13341,
+    GOSSIP_WARMASTER_BLACKHORN = 13275,
+    GOSSIP_SPINE_OF_DEATHWING = 13252*/
+};
+
+enum DSAreas
+{
+    AREA_THE_DRAGON_WASTES_1 = 5923,
+    AREA_ABOVE_THE_FROZEN_SEA = 5922,
+    AREA_WYRMREST_SUMMIT = 5928,
+};
+
+enum DSOther
+{
+    DEATHWING_MOVEMENT_BASE = 1,
+    DEATHWING_MOVEMENT_SUMMIT,
+};
+
+enum ScriptGroups
+{
+    SG_NONE,
+    SG_MORCHOK_INTRO,
+    SG_MORCHOK_EVENT_1,
+    SG_TWILIGHT_HAMMER_CASTERS,
+
+    // Guid Script ID
+    GSID_KALECGOS_PLATFORM = 5630701,
+    GSID_YSERA_PLATFORM = 5630702,
+    GSID_NOZDORMU_PLATFORM = 5630703,
+    GSID_ALEXSTRASZA_PLATFORM = 5630704,
+};
+
+Position const CongealingTargetOne = { -12128.5f, 12171.400391f, -2.738434f, 0.0f };
+Position const CongealingTargetTwo = { -12117.799805f, 12155.299805f, -2.738434f, 0.0f };
+Position const CongealingTargetThree = { -12099.099609f, 12142.700195f, -2.738434f, 0.0f };
+Position const CongealingTargetFour = { -12075.200195f, 12133.700195f, -2.738434f, 0.0f };
+
+enum SharedTalk
+{
+};
+
+class DelayedSpellEvent : public BasicEvent
+{
+    public:
+        DelayedSpellEvent(Unit* owner, Unit* target, uint32 spellId, bool triggered = false) : _owner(owner), _target(target), _spellId(spellId), _triggered(triggered) {}
+
+        bool Execute(uint64 /*e_time*/, uint32 /*p_time*/)
+        {
+            _owner->CastSpell(_target, _spellId, _triggered);
+            return true;
+        }
+
+    private:
+        Unit* _owner;
+        Unit* _target;
+        uint32 _spellId;
+        bool _triggered;
+};
+
+class DelayedTalkEvent : public BasicEvent
+{
+    public:
+        DelayedTalkEvent(Creature* source, uint8 id) : _source(source), _id(id) {}
+
+        bool Execute(uint64, uint32) override
+        {
+            if (_source->IsAIEnabled)
+                _source->AI()->Talk(_id);
+
+            return true;
+        }
+
+    private:
+        Creature* _source;
+        uint8 _id;
+};
+
+class DelayedSplineEvent : public BasicEvent
+{
+    public:
+        DelayedSplineEvent(Creature* source, float x, float y, float z, float speed, bool isFlying, bool isSmooth)
+            : _source(source), _x(x), _y(y), _z(z), _speed(speed), _isFlying(isFlying), _isSmooth(isSmooth) {}
+
+        bool Execute(uint64, uint32) override
+        {
+            Movement::MoveSplineInit init(_source);
+            init.MoveTo(_x, _y, _z);
+            init.SetVelocity(_speed);
+            if (_isFlying)
+                init.SetFly();
+            if (_isSmooth)
+                init.SetSmooth();
+            init.Launch();
+            return true;
+        }
+
+    private:
+        Creature* _source;
+        float _x, _y, _z, _speed;
+        bool _isFlying, _isSmooth;
+};
+
+struct RangedClassTargetSelector : public std::unary_function<Unit*, bool>
+{
+    RangedClassTargetSelector() {}
+
+    bool operator()(Unit const* object) const
+    {
+        if (!object->ToPlayer())
+            return true;
+
+        switch (object->ToPlayer()->getClass())
+        {
+            case CLASS_MAGE:
+            case CLASS_WARLOCK:
+            case CLASS_HUNTER:
+            case CLASS_PRIEST:
+                return false;
+            default:
+                break;
+        }
+
+        switch (object->ToPlayer()->GetPrimaryTalentTree(object->ToPlayer()->GetActiveSpec()))
+        {
+            case TALENT_TREE_PALADIN_HOLY:
+            case TALENT_TREE_DRUID_BALANCE:
+            case TALENT_TREE_DRUID_RESTORATION:
+            case TALENT_TREE_SHAMAN_ELEMENTAL:
+            case TALENT_TREE_SHAMAN_RESTORATION:
+                return false;
+            default:
+                break;
+        }
+
+        return true;
+    }
+};
+
+#endif
