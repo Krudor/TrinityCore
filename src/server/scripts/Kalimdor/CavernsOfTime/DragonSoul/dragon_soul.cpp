@@ -5,6 +5,8 @@
 #include "SpellScript.h"
 #include "ScriptedCreature.h"
 #include "SharedDefines.h"
+#include "Player.h"
+#include "ScriptedGossip.h"
 
 /*
     Events Unfold - Hagara
@@ -115,6 +117,11 @@ uint32 const TwilightFlamesMapping[12] =
     { SPELL_TWILIGHT_FLAMES_GROUP_12 },
 };
 
+std::map<uint32, uint8> EventsUnfoldIndexMap = 
+{
+    {}
+};
+
 // http://www.wowhead.com/npc=56630
 class npc_ds_alexstrasza_part_one : public CreatureScript
 {
@@ -216,6 +223,86 @@ class npc_ds_kalecgos_part_one : public CreatureScript
         private:
             TaskScheduler _scheduler;
         };
+
+        bool OnGossipHello(Player* player, Creature* creature) override
+        {
+            InstanceScript* instance = creature->GetInstanceScript();
+            if (!instance)
+                return true;
+
+            switch (creature->GetAreaId())
+            {
+                case AREA_THE_DRAGON_WASTES_1:
+                    switch (player->GetTeam())
+                    {
+                        case ALLIANCE:
+                            player->ADD_GOSSIP_ITEM_DB(GOSSIP_SKYFIRE_DRAGONBLIGHT, GOSSIP_OPTION_ALLIANCE, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+                            break;
+                        case HORDE:
+                            player->ADD_GOSSIP_ITEM_DB(GOSSIP_SKYFIRE_DRAGONBLIGHT, GOSSIP_OPTION_HORDE, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+                            break;
+                        default:
+                            break;
+                    }
+                    player->SEND_GOSSIP_MENU(player->GetGossipTextId(GOSSIP_SKYFIRE_DRAGONBLIGHT, creature), creature->GetGUID());
+                    break;
+                case AREA_ABOVE_THE_FROZEN_SEA:
+                    uint32 state = instance->GetBossState(DATA_WARMASTER_BLACKHORN);
+                    switch (state)
+                    {
+                        case NOT_STARTED:
+                            player->ADD_GOSSIP_ITEM_DB(GOSSIP_WARMASTER_BLACKHORN, 0, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
+                            player->SEND_GOSSIP_MENU(player->GetGossipTextId(GOSSIP_WARMASTER_BLACKHORN, creature), creature->GetGUID());
+                            break;
+                        case DONE:
+                            if (instance->GetBossState(DATA_SPINE_OF_DEATHWING) == NOT_STARTED)
+                                player->ADD_GOSSIP_ITEM_DB(GOSSIP_SPINE_OF_DEATHWING, 0, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 3);
+                            player->SEND_GOSSIP_MENU(player->GetGossipTextId(GOSSIP_WARMASTER_BLACKHORN, creature), creature->GetGUID());
+                            break;
+                        default:
+                            break;
+                    }
+                    break;
+            }
+
+            return true;
+        }
+
+        bool OnGossipSelect(Player* player, Creature* creature, uint32 /*sender*/, uint32 action) override
+        {
+            player->PlayerTalkClass->SendCloseGossip();
+
+            if (!creature->HasFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP))
+                return true;
+
+            InstanceScript* instance = creature->GetInstanceScript();
+            if (!instance)
+                return true;
+
+            switch (action)
+            {
+                case GOSSIP_ACTION_INFO_DEF + 1:
+                    creature->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
+                    creature->CastSpell(player, SPELL_TELEPORT_ALL_TO_GUNSHIP, true);
+                    if (GameObject* skyfire = ObjectAccessor::GetGameObject(*creature, instance->GetGuidData(GO_ALLIANCE_SHIP_1)))
+                        break;
+                case GOSSIP_ACTION_INFO_DEF + 2:
+                    creature->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
+                    creature->SummonCreature(NPC_GORIONA, GorionaSpawnPos, TEMPSUMMON_MANUAL_DESPAWN);
+                    break;
+                case GOSSIP_ACTION_INFO_DEF + 3:
+                    if (instance->GetBossState(DATA_SPINE_OF_DEATHWING) != NOT_STARTED)
+                        break;
+
+                    creature->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
+                    creature->AI()->DoCastAOE(SPELL_PLAY_SPINE_OF_DEATHWING_CINEMATIC, true);
+                    break;
+                default:
+                    break;
+            }
+
+            return true;
+        }
 
         CreatureAI* GetAI(Creature* creature) const override
         {
@@ -527,6 +614,7 @@ class npc_ds_events_unfold_kalecgos : public CreatureScript
 
             void Reset() override
             {
+                me->Talk()
                 _scheduler.Schedule(Seconds(21), [this](TaskContext context)
                 {
                     DoCastAOE(SPELL_DIALOGUE_EVENTS_UNFOLD_HAGARA_3, true);
