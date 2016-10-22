@@ -43,6 +43,12 @@ enum Data
     DATA_DEATHWING_MOVEMENT,
     DATA_SPINE_LOOTED,
     DATA_EVENTS_UNFOLD_HAGARA,
+
+    DATA_WYRMREST_SUMMIT_YSERA,
+    DATA_WYRMREST_SUMMIT_NOZDORMU,
+    DATA_WYRMREST_SUMMIT_THRALL,
+    DATA_WYRMREST_SUMMIT_KALECGOS,
+    DATA_WYRMREST_SUMMIT_ALEXSTRASZA,
 };
 
 enum DSData
@@ -448,33 +454,38 @@ struct RangedClassTargetSelector : public std::unary_function<Unit*, bool>
 
     bool operator()(Unit const* object) const
     {
-        if (!object->ToPlayer())
+        switch (object->getClass())
+        {
+        case CLASS_WARRIOR:
+        case CLASS_PALADIN:
+        case CLASS_ROGUE:
+        case CLASS_DEATH_KNIGHT:
+        default:
+            return false;
+        case CLASS_MAGE:
+        case CLASS_WARLOCK:
             return true;
-
-        switch (object->ToPlayer()->getClass())
+        case CLASS_HUNTER:
         {
-            case CLASS_MAGE:
-            case CLASS_WARLOCK:
-            case CLASS_HUNTER:
-            case CLASS_PRIEST:
-                return false;
-            default:
-                break;
-        }
+            // Assume it's ranged if its a npc controlled hunter class
+            Player const* player = object->ToPlayer();
+            if (!player)
+                return true;
 
-        switch (object->ToPlayer()->GetPrimaryTalentTree(object->ToPlayer()->GetActiveSpec()))
-        {
-            case TALENT_TREE_PALADIN_HOLY:
-            case TALENT_TREE_DRUID_BALANCE:
-            case TALENT_TREE_DRUID_RESTORATION:
-            case TALENT_TREE_SHAMAN_ELEMENTAL:
-            case TALENT_TREE_SHAMAN_RESTORATION:
-                return false;
-            default:
-                break;
+            // check if we have a ranged weapon equipped
+            Item const* rangedSlot = player->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_RANGED);
+            if (ItemTemplate const* rangedTemplate = rangedSlot ? rangedSlot->GetTemplate() : nullptr)
+                if ((1 << rangedTemplate->GetSubClass()) & ITEM_SUBCLASS_MASK_WEAPON_RANGED)
+                    return true;
+            return false;
         }
-
-        return true;
+        case CLASS_PRIEST:
+            return object->GetUInt32Value(PLAYER_FIELD_CURRENT_SPEC_ID) == TALENT_SPEC_PRIEST_SHADOW;
+        case CLASS_SHAMAN:
+            return object->GetUInt32Value(PLAYER_FIELD_CURRENT_SPEC_ID) == TALENT_SPEC_SHAMAN_ELEMENTAL;
+        case CLASS_DRUID:
+            return object->GetUInt32Value(PLAYER_FIELD_CURRENT_SPEC_ID) == TALENT_SPEC_DRUID_BALANCE;
+        }
     }
 };
 

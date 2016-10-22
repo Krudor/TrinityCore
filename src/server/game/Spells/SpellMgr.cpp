@@ -3467,6 +3467,10 @@ void SpellMgr::LoadSpellInfoCorrections()
             case 102445: // Summon Master Li Fei
                 const_cast<SpellEffectInfo*>(spellInfo->GetEffect(EFFECT_0))->TargetA = SpellImplicitTargetInfo(TARGET_DEST_DB);
                 break;
+            case 105846: // Nuclear Blast - Script Effect
+                const_cast<SpellEffectInfo*>(spellInfo->GetEffect(EFFECT_0))->RadiusEntry = sSpellRadiusStore.LookupEntry(EFFECT_RADIUS_15_YARDS); // 15yd
+                spellInfo->MaxAffectedTargets = 1;
+                break;
             default:
                 break;
         }

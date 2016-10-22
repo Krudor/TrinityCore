@@ -17,7 +17,6 @@
 
 /*
     ___Todo___/____Information___
-    Corruption spawn visual effect does not trigger for some reason when it is casted by a creature, only from a player. Core related or something wrong scriptwise?
     Hideous Amalgamation's Nuclear Blast range to trigger the opening of the plate may have to be adjusted, no blizzlike values.
 */
 
@@ -38,6 +37,7 @@ enum Spells
     SPELL_DESTROY_ALL_LIFE              = 109048,
     SPELL_ANTI_EXPLOIT_LOS_CHECK        = 109983,
     SPELL_CHECK_FOR_PLAYERS             = 109035,
+    SPELL_PET_HACK_1                    = 95278,
     SPELL_DEATHWING_TALK                = 106300, //Using this spell to send our special opcode will complicate things for no reason.
     SPELL_DEATHWING_ROAR                = 106302, //Using this spell to send our special opcode will complicate things for no reason.
     SPELL_SPAWNING_CONTROLLER           = 105003, //No info
@@ -71,6 +71,14 @@ enum Spells
     SPELL_ABSORB_BLOOD                  = 105244,
     SPELL_ABSORB_BLOOD_BAR              = 109329,
     SPELL_SUPERHEATED_NUCLEUS           = 105834,
+
+    SPELL_PARACHUTE_SAFE_FALL           = 69815,
+
+    // Corrupted Blood
+    SPELL_STUN_SELF                     = 101120, // Server-side spell
+
+    // Corruption
+    SPELL_SUMMON_TENTACLE               = 104972,
 };
 
 enum Talk
@@ -200,6 +208,24 @@ class StartAttackEvent : public BasicEvent
 Position const SwayzeCyaPoint = { -13851.03f, -13720.8f, -1944.319f };
 Position const KaanuCyaPoint = { -13850.95f, -13731.55f -1944.319f };
 
+class MultiEntryCheckPredicate
+{
+    public:
+        MultiEntryCheckPredicate() { }
+        MultiEntryCheckPredicate(std::vector<uint32> entries) : _entries(entries) { }
+        void AddEntry(uint32 entry)
+        {
+            _entries.push_back(entry);
+        }
+        bool operator()(ObjectGuid guid)
+        {
+            return find(_entries.begin(), _entries.end(), guid.GetEntry()) != _entries.end();
+        }
+
+    private:
+        std::vector<uint32> _entries;
+};
+
 class DelayedSpineEvent : public BasicEvent
 {
     public:
@@ -241,13 +267,7 @@ class boss_spine_of_deathwing : public CreatureScript
                 SetCombatMovement(false);
             }
 
-            void InitializeAI() override
-            {
-                if (!me->isDead())
-                    JustRespawned();
-            }
-
-            void JustRespawned() override
+            void Reset() override
             {
 				_Reset();
 				_lastSpawner = ObjectGuid::Empty;
@@ -266,14 +286,6 @@ class boss_spine_of_deathwing : public CreatureScript
             {
                 if (Player* player = who->ToPlayer())
                     player->UpdateCriteria(CRITERIA_TYPE_BE_SPELL_TARGET, 94644); // Triggers http://www.wowhead.com/achievement=5518/stood-in-the-fire
-            }
-
-            void MoveInLineOfSight(Unit* who) override
-            {
-                if (me->CanCreatureAttack(who) && me->GetDistance2d(who) < me->GetCombatReach() && !me->IsInCombat())
-                    DoZoneInCombat();
-
-                ScriptedAI::MoveInLineOfSight(who);
             }
 
             void SpellHitTarget(Unit* target, SpellInfo const* spell) override
@@ -333,11 +345,20 @@ class boss_spine_of_deathwing : public CreatureScript
                 _EnterCombat();
                 summons.DoZoneInCombat();
                 instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, me);
-
-                events.ScheduleEvent(EVENT_TAUNT_MAP_EVENT, urand(35, 45) * IN_MILLISECONDS, EVENT_GROUP_DELAYABLE);
+                _scheduler.Schedule(Seconds(30), Seconds(36), [](TaskContext contexxt)
+                {
+                    
+                });
+                //events.ScheduleEvent(EVENT_TAUNT_MAP_EVENT, urand(30, 46) * IN_MILLISECONDS, EVENT_GROUP_DELAYABLE);
+                DoCastAOE(SPELL_SPAWNING_CONTROLLER);
+                DoCastAOE(SPELL_CHECK_FOR_PLAYERS);
+                DoCastAOE(SPELL_PET_HACK_1);
                 events.ScheduleEvent(EVENT_SUMMON_SLIME, 9 * IN_MILLISECONDS);
                 events.ScheduleEvent(EVENT_ROLL_CONTROL, 16 * IN_MILLISECONDS);
-                events.ScheduleEvent(EVENT_BERSERK, 30 * MINUTE * IN_MILLISECONDS);
+                _scheduler.Schedule(Minutes(15), [this](TaskContext)
+                {
+                    DoCastAOE(SPELL_DESTROY_ALL_LIFE);
+                });
 
                 if (Creature* corruption = me->FindNearestCreature(NPC_CORRUPTION_3, 30.0f))
                     if (Unit* swayze = corruption->GetVehicleKit()->GetPassenger(SEAT_0))
@@ -409,6 +430,18 @@ class boss_spine_of_deathwing : public CreatureScript
                         _canAnimate = false;
                         _SendMapObjEvent(ANIM_CUSTOM_SPELL_02, CL_GUID_DEATHWING);
                         events.ScheduleEvent(EVENT_CAN_ANIMATE, 6 * IN_MILLISECONDS);
+                        break;
+                    case ACTION_FIERY_GRIP:
+                        _scheduler.Schedule(Seconds(16), [this](TaskContext)
+                        {
+                            //MultiEntryCheckPredicate pred(
+                            //{
+                            //    NPC_CORRUPTION,
+                            //    NPC_CORRUPTION_2,
+                            //    NPC_CORRUPTION_3
+                            //});
+                            //summons.DoAction(ACTION_FIERY_GRIP, pred);
+                        });
                         break;
                     default:
                         break;
@@ -587,6 +620,7 @@ class boss_spine_of_deathwing : public CreatureScript
             }
 
         private:
+            TaskScheduler _scheduler;
             uint8 _rollTick;
             bool _started;
             FightData _rollStatus;
@@ -857,11 +891,11 @@ public:
 
         void Reset() override
         {
-            me->SetReactState(REACT_PASSIVE);
+            me->SetControlled(true, UNIT_STATE_STUNNED); // Hack, handled by server-side spell
             me->AddAura(SPELL_REDUCE_CRIT_CHANCE, me);
             _scheduler.Schedule(Seconds(1), [this](TaskContext)
             {
-                me->SetReactState(REACT_AGGRESSIVE);
+                me->SetControlled(false, UNIT_STATE_STUNNED);
                 if (Unit* target = me->SelectNearestHostileUnitInAggroRange())
                     me->AI()->AttackStart(target);
             });
@@ -945,26 +979,16 @@ class npc_sod_spawner : public CreatureScript
 
             void SpellHit(Unit* caster, SpellInfo const* spell) override
             {
-                if (spell->Id != SPELL_ACTIVATE_SPAWNER)
-                    return;
-
-                DoCastAOE(SPELL_GRASPING_TENDRILS, true);
-                _scheduler.Schedule(Milliseconds(3500), [this](TaskContext)
+                switch (spell->Id)
                 {
-                    DoCastAOE(SPELL_SUMMON_AMALGAMATION, true);
-                });
-            }
-
-            void DoAction(int32 action)
-            {
-                switch (action)
-                {
-                    /*case ACTION_ACTIVATE_SPAWNER:
-                        DoCastAOE(SPELL_ACTIVATE_SPAWNER, true);
+                    case SPELL_ACTIVATE_SPAWNER:
                         DoCastAOE(SPELL_GRASPING_TENDRILS, true);
-                        _events.ScheduleEvent(EVENT_SUMMON_AMALGAMATION, 3.5*IN_MILLISECONDS);
-                        break;*/
-                    case ACTION_DEACTIVATE_SPAWNER:
+                        _scheduler.Schedule(Milliseconds(3500), [this](TaskContext)
+                        {
+                            DoCastAOE(SPELL_SUMMON_AMALGAMATION, true);
+                        });
+                        break;
+                    case SPELL_SUMMON_TENTACLE:
                         me->RemoveAurasDueToSpell(SPELL_GRASPING_TENDRILS);
                         break;
                     default:
@@ -993,31 +1017,52 @@ class npc_sod_corruption : public CreatureScript
 
 		struct npc_sod_corruptionAI : public ScriptedAI
         {
-			npc_sod_corruptionAI(Creature* creature) : ScriptedAI(creature) { ScriptedAI::SetCombatMovement(false); }
+			npc_sod_corruptionAI(Creature* creature) : ScriptedAI(creature)
+			{
+                _castFieryGrip = false;
+			    ScriptedAI::SetCombatMovement(false);
+			}
 
             void AttackStart(Unit* victim) override {}
 
             void Reset() override
             {
+                _castFieryGrip = false;
                 _healthPctBreak = 0;
             }
 
-            void IsSummonedBy(Unit* /*who*/) override
+            void DoAction(int32 action) override
             {
-                me->HandleEmoteCommand(EMOTE_ONESHOT_EMERGE);
+                if (action != ACTION_FIERY_GRIP)
+                    return;
+
+                _healthPctBreak = me->GetHealth() - me->CountPctFromMaxHealth(20); // 20% hp seems wrong, it should be lower
+                me->CastStop();
+                DoCastAOE(SPELL_FIERY_GRIP);
             }
 
             void DamageTaken(Unit* /*source*/, uint32& damage) override
             {
                 if (int64(me->GetHealth()) - int64(damage) < int64(_healthPctBreak))
-                    me->CastStop(SPELL_SEARING_PLASMA);
+                {
+                    me->CastStop();
+                    if (InstanceScript* instance = me->GetInstanceScript())
+                        if (Creature* deathwing = instance->GetCreature(DATA_SPINE_OF_DEATHWING))
+                            if (deathwing->IsAIEnabled)
+                                deathwing->AI()->DoAction(ACTION_FIERY_GRIP);
+                }
             }
 
             void EnterCombat(Unit* /*who*/) override
             {
                 DoCastAOE(SPELL_SEARING_PLASMA);
-                _events.ScheduleEvent(EVENT_FIERY_GRIP, 20 * IN_MILLISECONDS);
-                _events.ScheduleEvent(EVENT_SEARING_PLASMA, urand(8, 12) * IN_MILLISECONDS);
+                _scheduler.Schedule(Seconds(1), [this](TaskContext context)
+                {
+                    if (!me->HasUnitState(UNIT_STATE_CASTING))
+                        DoCastAOE(SPELL_SEARING_PLASMA);
+
+                    context.Repeat();
+                });
             }
 
             void JustDied(Unit* who) override
@@ -1025,31 +1070,10 @@ class npc_sod_corruption : public CreatureScript
                 DoCastAOE(SPELL_ACTIVATE_SPAWNER);
             }
 
-            void UpdateAI(uint32 diff) override
-            {
-                _events.Update(diff);
-
-                if (me->HasUnitState(UNIT_STATE_CASTING))
-                    return;
-
-                switch (_events.ExecuteEvent())
-                {
-                    case EVENT_FIERY_GRIP:
-                        DoCastAOE(SPELL_FIERY_GRIP);
-                        _healthPctBreak = me->GetHealth() - me->CountPctFromMaxHealth(20);
-                        break;
-                    case EVENT_SEARING_PLASMA:
-                        DoCastAOE(SPELL_SEARING_PLASMA);
-                        _events.ScheduleEvent(EVENT_SEARING_PLASMA, urand(8, 12) * IN_MILLISECONDS);
-                        break;
-                    default:
-                        break;
-                }
-            }
-
         private:
+            bool _castFieryGrip;
             uint64 _healthPctBreak;
-            EventMap _events;
+            TaskScheduler _scheduler;
         };
 
         CreatureAI* GetAI(Creature* creature) const override
@@ -1059,82 +1083,107 @@ class npc_sod_corruption : public CreatureScript
 };
 
 // http://www.wowhead.com/spell=105490
-// http://www.wowhead.com/spell=109379
-class spell_searing_plasma_fiery_grip : public SpellScriptLoader
+class spell_spine_of_deathwing_fiery_grip : public SpellScriptLoader
 {
-public:
-    spell_searing_plasma_fiery_grip() : SpellScriptLoader("spell_searing_plasma_fiery_grip") {}
+    public:
+        spell_spine_of_deathwing_fiery_grip() : SpellScriptLoader("spell_spine_of_deathwing_fiery_grip") {}
 
-    class spell_searing_plasma_fiery_grip_SpellScript : public SpellScript
-    {
-        PrepareSpellScript(spell_searing_plasma_fiery_grip_SpellScript);
-
-        bool Validate(SpellInfo const* /*spellInfo*/) override
+        class spell_spine_of_deathwing_fiery_grip_SpellScript : public SpellScript
         {
-            if (!sSpellMgr->GetSpellInfo(SPELL_SEARING_PLASMA))
-                return false;
-            if (!sSpellMgr->GetSpellInfo(SPELL_FIERY_GRIP))
-                return false;
-            return true;
-        }
+            PrepareSpellScript(spell_spine_of_deathwing_fiery_grip_SpellScript);
 
-        void FilterTargets(std::list<WorldObject*>& targets)
-        {
-            if (targets.empty() || !GetCaster() || !GetCaster()->GetMap())
-                return;
-
-            uint32 numTargets = GetCaster()->GetMap()->Is25ManRaid() ? 3 : 1;
-            if (GetSpellInfo()->Id == SPELL_SEARING_PLASMA)
+            bool Validate(SpellInfo const* /*spellInfo*/) override
             {
+                if (!sSpellMgr->GetSpellInfo(SPELL_FIERY_GRIP))
+                    return false;
+                return true;
+            }
+
+            void HandleScript(SpellEffIndex /*effIndex*/)
+            {
+                GetCaster()->CastSpell(GetHitUnit(), uint32(GetEffectValue()), true);
+            }
+
+            void FilterTargets(std::list<WorldObject*>& targets)
+            {
+                uint32 numTargets = GetCaster()->GetMap()->Is25ManRaid() ? 3 : 1;
+                Trinity::Containers::RandomResizeList(targets, targets.size() <= numTargets ? targets.size()-1 : numTargets);
+                _targets = targets;
+            }
+
+            void CopyTargets(std::list<WorldObject*>& targets)
+            {
+                targets = _targets;
+            }
+
+            void Register() override
+            {
+                OnEffectHitTarget += SpellEffectFn(spell_spine_of_deathwing_fiery_grip_SpellScript::HandleScript, EFFECT_0, SPELL_EFFECT_DUMMY);
+                OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_spine_of_deathwing_fiery_grip_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
+                OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_spine_of_deathwing_fiery_grip_SpellScript::CopyTargets, EFFECT_1, TARGET_UNIT_SRC_AREA_ENEMY);
+            }
+
+            std::list<WorldObject*> _targets;
+        };
+
+        SpellScript* GetSpellScript() const override
+        {
+            return new spell_spine_of_deathwing_fiery_grip_SpellScript();
+        }
+};
+
+// http://www.wowhead.com/spell=109379
+class spell_spine_of_deathwing_searing_plasma : public SpellScriptLoader
+{
+    public:
+        spell_spine_of_deathwing_searing_plasma() : SpellScriptLoader("spell_spine_of_deathwing_searing_plasma") {}
+
+        class spell_spine_of_deathwing_searing_plasma_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_spine_of_deathwing_searing_plasma_SpellScript);
+
+            bool Validate(SpellInfo const* /*spellInfo*/) override
+            {
+                if (!sSpellMgr->GetSpellInfo(SPELL_SEARING_PLASMA))
+                    return false;
+                return true;
+            }
+
+            void FilterTargets(std::list<WorldObject*>& targets)
+            {
+                uint32 numTargets = GetCaster()->GetMap()->Is25ManRaid() ? 3 : 1;
                 targets.remove_if(Trinity::UnitAuraCheck(true, SPELL_SEARING_PLASMA_AURA));
                 if (targets.size() > numTargets)
-                    Trinity::Containers::RandomResizeList(targets, GetCaster()->GetMap()->Is25ManRaid() ? 3 : 1);
+                    Trinity::Containers::RandomResizeList(targets, numTargets);
             }
-            else if (GetSpellInfo()->Id == SPELL_FIERY_GRIP)
-                Trinity::Containers::RandomResizeList(targets, targets.size() <= numTargets ? targets.size()-1 : numTargets);
 
-            _targets = targets;
-        }
+            void HandleScript(SpellEffIndex /*effIndex*/)
+            {
+                GetCaster()->CastSpell(GetHitUnit(), uint32(GetEffectValue()), true);
+            }
 
-        void FilterTargets2(std::list<WorldObject*>& targets)
+            void Register() override
+            {
+                OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_spine_of_deathwing_searing_plasma_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
+                OnEffectHitTarget += SpellEffectFn(spell_spine_of_deathwing_searing_plasma_SpellScript::HandleScript, EFFECT_0, SPELL_EFFECT_DUMMY);
+            }
+        };
+
+        SpellScript* GetSpellScript() const override
         {
-            targets.clear();
-
-            targets = _targets;
+            return new spell_spine_of_deathwing_searing_plasma_SpellScript();
         }
-
-        void HandleScript(SpellEffIndex /*effIndex*/)
-        {
-            if (Player* target = GetHitPlayer())
-                GetCaster()->CastSpell(target, uint32(GetEffectValue()), true);
-        }
-
-        void Register() override
-        {
-            OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_searing_plasma_fiery_grip_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
-            OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_searing_plasma_fiery_grip_SpellScript::FilterTargets2, EFFECT_1, TARGET_UNIT_SRC_AREA_ENEMY);
-            OnEffectHitTarget += SpellEffectFn(spell_searing_plasma_fiery_grip_SpellScript::HandleScript, EFFECT_0, SPELL_EFFECT_DUMMY);
-        }
-
-    private:
-        std::list<WorldObject*> _targets;
-    };
-
-    SpellScript* GetSpellScript() const override
-    {
-        return new spell_searing_plasma_fiery_grip_SpellScript();
-    }
 };
 
 // http://www.wowhead.com/spell=105834
-class spell_superheated_nucleus : public SpellScriptLoader
+class spell_spine_of_deathwing_superheated_nucleus : public SpellScriptLoader
 {
     public:
-        spell_superheated_nucleus() : SpellScriptLoader("spell_superheated_nucleus") { }
+        spell_spine_of_deathwing_superheated_nucleus() : SpellScriptLoader("spell_spine_of_deathwing_superheated_nucleus") { }
 
-        class spell_superheated_nucleus_AuraScript : public AuraScript
+        class spell_spine_of_deathwing_superheated_nucleus_AuraScript : public AuraScript
         {
-            PrepareAuraScript(spell_superheated_nucleus_AuraScript);
+            PrepareAuraScript(spell_spine_of_deathwing_superheated_nucleus_AuraScript);
 
             void HandlePeriodic(AuraEffect const* /*aurEff*/)
             {
@@ -1144,59 +1193,14 @@ class spell_superheated_nucleus : public SpellScriptLoader
 
             void Register() override
             {
-                OnEffectPeriodic += AuraEffectPeriodicFn(spell_superheated_nucleus_AuraScript::HandlePeriodic, EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
+                OnEffectPeriodic += AuraEffectPeriodicFn(spell_spine_of_deathwing_superheated_nucleus_AuraScript::HandlePeriodic, EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
             }
         };
 
         AuraScript* GetAuraScript() const override
         {
-            return new spell_superheated_nucleus_AuraScript();
+            return new spell_spine_of_deathwing_superheated_nucleus_AuraScript();
         }
-};
-
-// http://www.wowhead.com/spell=109022
-class spell_spine_of_deathwing_check_for_players : public SpellScriptLoader
-{
-public:
-    spell_spine_of_deathwing_check_for_players() : SpellScriptLoader("spell_spine_of_deathwing_check_for_players") {}
-
-    class spell_spine_of_deathwing_check_for_players_SpellScript : public SpellScript
-    {
-        PrepareSpellScript(spell_spine_of_deathwing_check_for_players_SpellScript);
-
-        bool Load() override
-        {
-            _targetCount = 0;
-            return GetCaster()->GetTypeId() == TYPEID_UNIT && GetCaster()->IsAIEnabled;
-        }
-
-        void CountTargets(std::list<WorldObject*>& targets)
-        {
-            _targetCount = targets.size();
-        }
-
-        void CheckTargets()
-        {
-            if (!_targetCount)
-                GetCaster()->ToCreature()->AI()->EnterEvadeMode();
-            else
-                GetCaster()->ToCreature()->AI()->DoZoneInCombat();
-        }
-
-        void Register() override
-        {
-            OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_spine_of_deathwing_check_for_players_SpellScript::CountTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
-            AfterCast += SpellCastFn(spell_spine_of_deathwing_check_for_players_SpellScript::CheckTargets);
-        }
-
-    private:
-        uint32 _targetCount;
-    };
-
-    SpellScript* GetSpellScript() const override
-    {
-        return new spell_spine_of_deathwing_check_for_players_SpellScript();
-    }
 };
 
 // http://www.wowhead.com/spell=109984
@@ -1240,472 +1244,457 @@ class spell_spine_of_deathwing_anti_exploit_los_check : public SpellScriptLoader
 // http://www.wowhead.com/spell=105777
 class spell_spine_of_deathwing_roll_control_jump : public SpellScriptLoader
 {
-public:
-    spell_spine_of_deathwing_roll_control_jump() : SpellScriptLoader("spell_spine_of_deathwing_roll_control_jump") {}
+    public:
+        spell_spine_of_deathwing_roll_control_jump() : SpellScriptLoader("spell_spine_of_deathwing_roll_control_jump") {}
 
-    class spell_spine_of_deathwing_roll_control_jump_SpellScript : public SpellScript
-    {
-        PrepareSpellScript(spell_spine_of_deathwing_roll_control_jump_SpellScript);
-
-        void RelocateDest(SpellDestination& dest)
+        class spell_spine_of_deathwing_roll_control_jump_SpellScript : public SpellScript
         {
-            const Position pos = { -13875.01f, -13769.59f, 285.1783f };
-            dest.Relocate(pos);
-        }
+            PrepareSpellScript(spell_spine_of_deathwing_roll_control_jump_SpellScript);
 
-        // Spell has some proc flags for positive spell hit, and positive spell cast. Could this be catchers for spellcasts like Life Grip & Heroic Leap similiar effects, to remove the stun effect?
+            void RelocateDest(SpellDestination& dest)
+            {
+                const Position pos = { -13875.01f, -13769.59f, 285.1783f };
+                dest.Relocate(pos);
+            }
 
-        void Register() override
+            // Spell has some proc flags for positive spell hit, and positive spell cast. Could this be catchers for spellcasts like Life Grip & Heroic Leap similiar effects, to remove the stun effect?
+
+            void Register() override
+            {
+                OnDestinationTargetSelect += SpellDestinationTargetSelectFn(spell_spine_of_deathwing_roll_control_jump_SpellScript::RelocateDest, EFFECT_0, TARGET_DEST_NEARBY_ENTRY);
+            }
+        };
+
+        SpellScript* GetSpellScript() const override
         {
-            OnDestinationTargetSelect += SpellDestinationTargetSelectFn(spell_spine_of_deathwing_roll_control_jump_SpellScript::RelocateDest, EFFECT_0, TARGET_DEST_NEARBY_ENTRY);
+            return new spell_spine_of_deathwing_roll_control_jump_SpellScript();
         }
-    };
-
-    SpellScript* GetSpellScript() const override
-    {
-        return new spell_spine_of_deathwing_roll_control_jump_SpellScript();
-    }
-};
-
-// http://www.wowhead.com/spell=104972
-class spell_summon_tentacle_dummy : public SpellScriptLoader
-{
-public:
-    spell_summon_tentacle_dummy() : SpellScriptLoader("spell_summon_tentacle_dummy") {}
-
-    class spell_summon_tentacle_dummy_SpellScript : public SpellScript
-    {
-        PrepareSpellScript(spell_summon_tentacle_dummy_SpellScript);
-
-        void HandleHit(SpellEffIndex effIndex)
-        {
-            PreventHitDefaultEffect(effIndex);
-            if (GetHitUnit()->IsAIEnabled)
-                GetHitUnit()->GetAI()->DoAction(ACTION_CORRUPTION_SPAWN); //Notify the spawner
-        }
-
-        void Register() override
-        {
-            OnEffectHitTarget += SpellEffectFn(spell_summon_tentacle_dummy_SpellScript::HandleHit, EFFECT_0, SPELL_EFFECT_DUMMY);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
-    {
-        return new spell_summon_tentacle_dummy_SpellScript();
-    }
 };
 
 // http://www.wowhead.com/spell=105535
 class spell_spine_of_deathwing_summon_tentacle : public SpellScriptLoader
 {
-public:
-    spell_spine_of_deathwing_summon_tentacle() : SpellScriptLoader("spell_spine_of_deathwing_summon_tentacle") {}
+    public:
+        spell_spine_of_deathwing_summon_tentacle() : SpellScriptLoader("spell_spine_of_deathwing_summon_tentacle") {}
 
-    class spell_spine_of_deathwing_summon_tentacle_SpellScript : public SpellScript
-    {
-        PrepareSpellScript(spell_spine_of_deathwing_summon_tentacle_SpellScript);
-
-        bool Validate(SpellInfo const* /*spellInfo*/) override
+        class spell_spine_of_deathwing_summon_tentacle_SpellScript : public SpellScript
         {
-            if (!sSpellMgr->GetSpellInfo(SPELL_SUMMON_CORRUPTION))
-                return false;
-            return true;
-        }
+            PrepareSpellScript(spell_spine_of_deathwing_summon_tentacle_SpellScript);
 
-        bool Load() override
-        {
-            return GetCaster()->GetTypeId() == TYPEID_UNIT && GetCaster()->IsAIEnabled;
-        }
-
-        void HandleHit(SpellEffIndex effIndex)
-        {
-            PreventHitDefaultEffect(effIndex);
-            GetCaster()->CastSpell(GetHitUnit(), uint32(GetEffectValue()), true);
-            if (UnitAI* AI = GetHitUnit()->GetAI())
-                AI->DoAction(ACTION_DEACTIVATE_SPAWNER);
-        }
-
-        void FilterTargets(std::list<WorldObject*>& targets)
-        {
-            if (Creature* lastSpawner = ObjectAccessor::GetCreature(*GetCaster(), GetCaster()->GetAI()->GetGUID(GUID_LAST_SPAWNER)))
-                targets.remove(lastSpawner);
-
-            targets.remove_if([](WorldObject* target)
+            bool Validate(SpellInfo const* /*spellInfo*/) override
             {
-                return !(target->GetTypeId() == TYPEID_UNIT && target->ToUnit()->HasAura(SPELL_GRASPING_TENDRILS));
-            });
+                if (!sSpellMgr->GetSpellInfo(SPELL_SUMMON_CORRUPTION))
+                    return false;
+                return true;
+            }
 
-            if (!targets.empty())
-                Trinity::Containers::RandomResizeList(targets, 1);
-        }
+            bool Load() override
+            {
+                return GetCaster()->GetTypeId() == TYPEID_UNIT && GetCaster()->IsAIEnabled;
+            }
 
-        void Register() override
+            void HandleHit(SpellEffIndex effIndex)
+            {
+                PreventHitDefaultEffect(effIndex);
+                GetCaster()->CastSpell(GetHitUnit(), uint32(GetEffectValue()), true);
+            }
+
+            void FilterTargets(std::list<WorldObject*>& targets)
+            {
+                targets.remove_if(Trinity::ObjectTypeIdCheck(TYPEID_UNIT, false));
+                targets.remove_if(Trinity::UnitAuraCheck(false, SPELL_GRASPING_TENDRILS));
+
+                if (Creature* lastSpawner = ObjectAccessor::GetCreature(*GetCaster(), GetCaster()->GetAI()->GetGUID(GUID_LAST_SPAWNER)))
+                    targets.remove(lastSpawner);
+
+                if (!targets.empty())
+                    Trinity::Containers::RandomResizeList(targets, 1);
+            }
+
+            void Register() override
+            {
+                OnEffectHitTarget += SpellEffectFn(spell_spine_of_deathwing_summon_tentacle_SpellScript::HandleHit, EFFECT_0, SPELL_EFFECT_DUMMY);
+                OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_spine_of_deathwing_summon_tentacle_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENTRY);
+            }
+        };
+
+        SpellScript* GetSpellScript() const override
         {
-            OnEffectHitTarget += SpellEffectFn(spell_spine_of_deathwing_summon_tentacle_SpellScript::HandleHit, EFFECT_0, SPELL_EFFECT_DUMMY);
-            OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_spine_of_deathwing_summon_tentacle_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENTRY);
+            return new spell_spine_of_deathwing_summon_tentacle_SpellScript();
         }
-    };
-
-    SpellScript* GetSpellScript() const override
-    {
-        return new spell_spine_of_deathwing_summon_tentacle_SpellScript();
-    }
 };
 
 // http://www.wowhead.com/spell=105537
 class spell_spine_of_deathwing_summon_slime : public SpellScriptLoader
 {
-public:
-    spell_spine_of_deathwing_summon_slime() : SpellScriptLoader("spell_spine_of_deathwing_summon_slime") {}
+    public:
+        spell_spine_of_deathwing_summon_slime() : SpellScriptLoader("spell_spine_of_deathwing_summon_slime") {}
 
-    class spell_spine_of_deathwing_summon_slime_SpellScript : public SpellScript
-    {
-        PrepareSpellScript(spell_spine_of_deathwing_summon_slime_SpellScript);
-
-        bool Validate(SpellInfo const* /*spellInfo*/) override
+        class spell_spine_of_deathwing_summon_slime_SpellScript : public SpellScript
         {
-            if (!sSpellMgr->GetSpellInfo(SPELL_SUMMON_SLIME))
-                return false;
-            return true;
-        }
+            PrepareSpellScript(spell_spine_of_deathwing_summon_slime_SpellScript);
 
-        bool Load() override
-        {
-            return GetCaster()->GetTypeId() == TYPEID_UNIT && GetCaster()->IsAIEnabled;
-        }
-
-        void HandleHit(SpellEffIndex effIndex)
-        {
-            PreventHitDefaultEffect(effIndex);
-            GetCaster()->CastSpell(GetHitUnit(), uint32(GetEffectValue()), true);
-        }
-
-        void FilterTargets(std::list<WorldObject*>& targets)
-        {
-            targets.remove_if([](WorldObject* target)
+            bool Validate(SpellInfo const* /*spellInfo*/) override
             {
-                return !(target->GetTypeId() == TYPEID_UNIT && target->ToUnit()->HasAura(SPELL_GRASPING_TENDRILS));
-            });
+                if (!sSpellMgr->GetSpellInfo(SPELL_SUMMON_SLIME))
+                    return false;
+                return true;
+            }
 
-            if (!targets.empty())
-                Trinity::Containers::RandomResizeList(targets, 1);
-        }
+            bool Load() override
+            {
+                return GetCaster()->GetTypeId() == TYPEID_UNIT && GetCaster()->IsAIEnabled;
+            }
 
-        void Register() override
+            void HandleHit(SpellEffIndex effIndex)
+            {
+                PreventHitDefaultEffect(effIndex);
+                GetCaster()->CastSpell(GetHitUnit(), uint32(GetEffectValue()), true);
+            }
+
+            void FilterTargets(std::list<WorldObject*>& targets)
+            {
+                targets.remove_if([](WorldObject* target)
+                {
+                    return !(target->GetTypeId() == TYPEID_UNIT && target->ToUnit()->HasAura(SPELL_GRASPING_TENDRILS));
+                });
+
+                if (!targets.empty())
+                    Trinity::Containers::RandomResizeList(targets, 1);
+            }
+
+            void Register() override
+            {
+                OnEffectHitTarget += SpellEffectFn(spell_spine_of_deathwing_summon_slime_SpellScript::HandleHit, EFFECT_0, SPELL_EFFECT_DUMMY);
+                OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_spine_of_deathwing_summon_slime_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENTRY);
+            }
+        };
+
+        SpellScript* GetSpellScript() const override
         {
-            OnEffectHitTarget += SpellEffectFn(spell_spine_of_deathwing_summon_slime_SpellScript::HandleHit, EFFECT_0, SPELL_EFFECT_DUMMY);
-            OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_spine_of_deathwing_summon_slime_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENTRY);
+            return new spell_spine_of_deathwing_summon_slime_SpellScript();
         }
-    };
-
-    SpellScript* GetSpellScript() const override
-    {
-        return new spell_spine_of_deathwing_summon_slime_SpellScript();
-    }
 };
 
 // http://www.wowhead.com/spell=105366
 // http://www.wowhead.com/spell=105384
 class spell_spine_of_deathwing_plate_fly_off : public SpellScriptLoader
 {
-public:
-    spell_spine_of_deathwing_plate_fly_off() : SpellScriptLoader("spell_spine_of_deathwing_plate_fly_off") {}
+    public:
+        spell_spine_of_deathwing_plate_fly_off() : SpellScriptLoader("spell_spine_of_deathwing_plate_fly_off") {}
 
-    class spell_spine_of_deathwing_plate_fly_off_SpellScript : public SpellScript
-    {
-        PrepareSpellScript(spell_spine_of_deathwing_plate_fly_off_SpellScript);
-
-        bool Validate(SpellInfo const* /*spellInfo*/) override
+        class spell_spine_of_deathwing_plate_fly_off_SpellScript : public SpellScript
         {
-            if (!sSpellMgr->GetSpellInfo(SPELL_PLATE_FLY_OFF_LEFT))
-                return false;
-            if (!sSpellMgr->GetSpellInfo(SPELL_PLATE_FLY_OFF_RIGHT))
-                return false;
-            return true;
-        }
+            PrepareSpellScript(spell_spine_of_deathwing_plate_fly_off_SpellScript);
 
-        void RecalculateDamage()
+            bool Validate(SpellInfo const* /*spellInfo*/) override
+            {
+                if (!sSpellMgr->GetSpellInfo(SPELL_PLATE_FLY_OFF_LEFT))
+                    return false;
+                if (!sSpellMgr->GetSpellInfo(SPELL_PLATE_FLY_OFF_RIGHT))
+                    return false;
+                return true;
+            }
+
+            void RecalculateDamage()
+            {
+                if (!GetHitUnit())
+                    return;
+
+                SetHitDamage(GetHitUnit()->CountPctFromMaxHealth(35));
+            }
+
+            void PlayAnimKit(SpellEffIndex effIndex)
+            {
+                // This function is a hack fix
+                GetHitGObj()->UseDoorOrButton();
+			    GetHitGObj()->SetAnimKitId(GetSpellInfo()->GetEffect(effIndex)->MiscValueB, false);
+            }
+
+            void Register() override
+            {
+                OnHit += SpellHitFn(spell_spine_of_deathwing_plate_fly_off_SpellScript::RecalculateDamage);
+                OnEffectHitTarget += SpellEffectFn(spell_spine_of_deathwing_plate_fly_off_SpellScript::PlayAnimKit, EFFECT_0, SPELL_EFFECT_ACTIVATE_OBJECT);
+            }
+        };
+
+        SpellScript* GetSpellScript() const override
         {
-            if (!GetHitUnit())
-                return;
-
-            SetHitDamage(GetHitUnit()->CountPctFromMaxHealth(35));
+            return new spell_spine_of_deathwing_plate_fly_off_SpellScript();
         }
-
-        void PlayAnimKit(SpellEffIndex effIndex)
-        {
-            GetHitGObj()->UseDoorOrButton();
-			GetHitGObj()->PlayAnimKit(GetSpellInfo()->Effects[effIndex].MiscValueB);
-        }
-
-        void SelectTarget(WorldObject*& target)
-        {
-            target = (WorldObject*)NULL;
-            if (InstanceScript* instance = GetCaster()->GetInstanceScript())
-				if (Creature* deathwing = ObjectAccessor::GetCreature(*GetCaster(), instance->GetGuidData(NPC_SPINE_OF_DEATHWING)))
-                target = deathwing;
-        }
-
-        void Register() override
-        {
-            OnHit += SpellHitFn(spell_spine_of_deathwing_plate_fly_off_SpellScript::RecalculateDamage);
-            OnEffectHitTarget += SpellEffectFn(spell_spine_of_deathwing_plate_fly_off_SpellScript::PlayAnimKit, EFFECT_0, SPELL_EFFECT_ACTIVATE_OBJECT);
-            OnObjectTargetSelect += SpellObjectTargetSelectFn(spell_spine_of_deathwing_plate_fly_off_SpellScript::SelectTarget, EFFECT_1, TARGET_UNIT_NEARBY_ENTRY);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
-    {
-        return new spell_spine_of_deathwing_plate_fly_off_SpellScript();
-    }
 };
 
 // http://www.wowhead.com/spell=105363
 // http://www.wowhead.com/spell=105385
 class spell_spine_of_deathwing_breach_armor : public SpellScriptLoader
 {
-public:
-    spell_spine_of_deathwing_breach_armor() : SpellScriptLoader("spell_spine_of_deathwing_breach_armor") {}
+    public:
+        spell_spine_of_deathwing_breach_armor() : SpellScriptLoader("spell_spine_of_deathwing_breach_armor") {}
 
-    class spell_spine_of_deathwing_breach_armor_SpellScript : public SpellScript
-    {
-        PrepareSpellScript(spell_spine_of_deathwing_breach_armor_SpellScript);
-
-        bool Validate(SpellInfo const* /*spellInfo*/) override
+        class spell_spine_of_deathwing_breach_armor_SpellScript : public SpellScript
         {
-            if (!sSpellMgr->GetSpellInfo(SPELL_BREACH_ARMOR_LEFT))
-                return false;
-            if (!sSpellMgr->GetSpellInfo(SPELL_BREACH_ARMOR_RIGHT))
-                return false;
-            return true;
-        }
+            PrepareSpellScript(spell_spine_of_deathwing_breach_armor_SpellScript);
 
-        void PlayAnimKit(SpellEffIndex effIndex)
+            bool Validate(SpellInfo const* /*spellInfo*/) override
+            {
+                if (!sSpellMgr->GetSpellInfo(SPELL_BREACH_ARMOR_LEFT))
+                    return false;
+                if (!sSpellMgr->GetSpellInfo(SPELL_BREACH_ARMOR_RIGHT))
+                    return false;
+                return true;
+            }
+
+            void PlayAnimKit(SpellEffIndex effIndex)
+            {
+                // This function is a hack fix
+                GetHitGObj()->UseDoorOrButton();
+                GetHitGObj()->SetAnimKitId(GetSpellInfo()->GetEffect(effIndex)->MiscValueB, false);
+            }
+
+            void Register() override
+            {
+                OnEffectHitTarget += SpellEffectFn(spell_spine_of_deathwing_breach_armor_SpellScript::PlayAnimKit, EFFECT_0, SPELL_EFFECT_ACTIVATE_OBJECT);
+            }
+        };
+
+        SpellScript* GetSpellScript() const override
         {
-            PreventHitDefaultEffect(effIndex);
-			GetHitGObj()->PlayAnimKit(GetSpellInfo()->Effects[effIndex].MiscValueB);
+            return new spell_spine_of_deathwing_breach_armor_SpellScript();
         }
-
-        void Register() override
-        {
-            OnEffectHitTarget += SpellEffectFn(spell_spine_of_deathwing_breach_armor_SpellScript::PlayAnimKit, EFFECT_0, SPELL_EFFECT_ACTIVATE_OBJECT);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
-    {
-        return new spell_spine_of_deathwing_breach_armor_SpellScript();
-    }
 };
 
 // http://www.wowhead.com/spell=105847
 // http://www.wowhead.com/spell=105848
 class spell_spine_of_deathwing_seal_armor_breach : public SpellScriptLoader
 {
-public:
-    spell_spine_of_deathwing_seal_armor_breach() : SpellScriptLoader("spell_spine_of_deathwing_seal_armor_breach") {}
+    public:
+        spell_spine_of_deathwing_seal_armor_breach() : SpellScriptLoader("spell_spine_of_deathwing_seal_armor_breach") {}
 
-    class spell_spine_of_deathwing_seal_armor_breach_SpellScript : public SpellScript
-    {
-        PrepareSpellScript(spell_spine_of_deathwing_seal_armor_breach_SpellScript);
-
-        bool Validate(SpellInfo const* /*spellInfo*/) override
+        class spell_spine_of_deathwing_seal_armor_breach_SpellScript : public SpellScript
         {
-            if (!sSpellMgr->GetSpellInfo(SPELL_BREACH_ARMOR_LEFT))
-                return false;
-            if (!sSpellMgr->GetSpellInfo(SPELL_BREACH_ARMOR_RIGHT))
-                return false;
-            return true;
-        }
+            PrepareSpellScript(spell_spine_of_deathwing_seal_armor_breach_SpellScript);
 
-        void PlayAnimKit(SpellEffIndex effIndex)
+            bool Validate(SpellInfo const* /*spellInfo*/) override
+            {
+                if (!sSpellMgr->GetSpellInfo(SPELL_SEAL_ARMOR_BREACH_LEFT))
+                    return false;
+                if (!sSpellMgr->GetSpellInfo(SPELL_SEAL_ARMOR_BREACH_RIGHT))
+                    return false;
+                return true;
+            }
+
+            void PlayAnimKit(SpellEffIndex effIndex)
+            {
+                // This function is a hack fix
+                GetHitGObj()->UseDoorOrButton();
+                GetHitGObj()->SetAnimKitId(GetSpellInfo()->GetEffect(effIndex)->MiscValueB, false);
+            }
+
+            void Register() override
+            {
+                OnEffectHitTarget += SpellEffectFn(spell_spine_of_deathwing_seal_armor_breach_SpellScript::PlayAnimKit, EFFECT_0, SPELL_EFFECT_ACTIVATE_OBJECT);
+            }
+        };
+
+        SpellScript* GetSpellScript() const override
         {
-            PreventHitDefaultEffect(effIndex);
-			GetHitGObj()->PlayAnimKit(GetSpellInfo()->Effects[effIndex].MiscValueB);
+            return new spell_spine_of_deathwing_seal_armor_breach_SpellScript();
         }
-
-        void ScriptEffect(SpellEffIndex effIndex)
-        {
-        }
-
-        void Register() override
-        {
-            OnEffectHitTarget += SpellEffectFn(spell_spine_of_deathwing_seal_armor_breach_SpellScript::PlayAnimKit, EFFECT_0, SPELL_EFFECT_ACTIVATE_OBJECT);
-            OnEffectHitTarget += SpellEffectFn(spell_spine_of_deathwing_seal_armor_breach_SpellScript::ScriptEffect, EFFECT_1, SPELL_EFFECT_SCRIPT_EFFECT);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
-    {
-        return new spell_spine_of_deathwing_seal_armor_breach_SpellScript();
-    }
 };
 
 // http://www.wowhead.com/spell=104621
 class spell_spine_of_deathwing_roll_control : public SpellScriptLoader
 {
-public:
-    spell_spine_of_deathwing_roll_control() : SpellScriptLoader("spell_spine_of_deathwing_roll_control") {}
+    public:
+        spell_spine_of_deathwing_roll_control() : SpellScriptLoader("spell_spine_of_deathwing_roll_control") {}
 
-    class spell_spine_of_deathwing_roll_control_SpellScript : public SpellScript
-    {
-        PrepareSpellScript(spell_spine_of_deathwing_roll_control_SpellScript);
-
-        bool Load() override
+        class spell_spine_of_deathwing_roll_control_SpellScript : public SpellScript
         {
-            _rollCommand = ACTION_ROLL_CANCEL;
-            return GetCaster()->GetTypeId() == TYPEID_UNIT && GetCaster()->IsAIEnabled;
-        }
+            PrepareSpellScript(spell_spine_of_deathwing_roll_control_SpellScript);
 
-        void TriggerRollSequence()
-        {
-            GetCaster()->GetAI()->DoAction(_rollCommand);
-        }
-
-        void FilterTargets(std::list<WorldObject*>& targets)
-        {
-            std::list<WorldObject*> leftTargets;
-            std::list<WorldObject*> rightTargets;
-
-            for (auto target : targets)
-            if (GetCaster()->GetAngle(target) + M_PI * 2 < GetCaster()->GetOrientation() + M_PI * 2)
-                rightTargets.push_back(target);
-            else
-                leftTargets.push_back(target);
-
-            if (!rightTargets.empty() && !leftTargets.empty())
+            bool Load() override
             {
-                if (leftTargets.size() / rightTargets.size() > 0.5 && leftTargets.size() / rightTargets.size() < 1.5)
-                    _rollCommand = leftTargets.size() > rightTargets.size() ? ACTION_ROLL_LEFT : ACTION_ROLL_RIGHT;
+                _rollCommand = ACTION_ROLL_CANCEL;
+                return GetCaster()->GetTypeId() == TYPEID_UNIT && GetCaster()->IsAIEnabled;
             }
-            else if (rightTargets.empty() && !leftTargets.empty())
-                _rollCommand = ACTION_ROLL_LEFT;
-            else if (leftTargets.empty() && !rightTargets.empty())
-                _rollCommand = ACTION_ROLL_RIGHT;
-        }
 
-        void Register() override
+            void TriggerRollSequence()
+            {
+                GetCaster()->GetAI()->DoAction(_rollCommand);
+            }
+
+            void FilterTargets(std::list<WorldObject*>& targets)
+            {
+                targets.remove_if(Trinity::ObjectTypeIdCheck(TYPEID_PLAYER, false));
+
+                std::list<WorldObject*> leftTargets;
+                std::list<WorldObject*> rightTargets;
+
+                for (auto target : targets)
+                if (GetCaster()->GetAngle(target) + M_PI * 2 < GetCaster()->GetOrientation() + M_PI * 2)
+                    rightTargets.push_back(target);
+                else
+                    leftTargets.push_back(target);
+
+                if (!rightTargets.empty() && !leftTargets.empty())
+                {
+                    if (leftTargets.size() / rightTargets.size() > 0.5 && leftTargets.size() / rightTargets.size() < 1.5)
+                        _rollCommand = leftTargets.size() > rightTargets.size() ? ACTION_ROLL_LEFT : ACTION_ROLL_RIGHT;
+                }
+                else if (rightTargets.empty() && !leftTargets.empty())
+                    _rollCommand = ACTION_ROLL_LEFT;
+                else if (leftTargets.empty() && !rightTargets.empty())
+                    _rollCommand = ACTION_ROLL_RIGHT;
+            }
+
+            void Register() override
+            {
+                AfterCast += SpellCastFn(spell_spine_of_deathwing_roll_control_SpellScript::TriggerRollSequence);
+                OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_spine_of_deathwing_roll_control_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
+            }
+
+        private:
+            Actions _rollCommand;
+        };
+
+        SpellScript* GetSpellScript() const override
         {
-            AfterCast += SpellCastFn(spell_spine_of_deathwing_roll_control_SpellScript::TriggerRollSequence);
-            OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_spine_of_deathwing_roll_control_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
+            return new spell_spine_of_deathwing_roll_control_SpellScript();
         }
+};
 
-    private:
-        Actions _rollCommand;
-    };
+// http://www.wowhead.com/spell=105777/roll-control
+class spell_spine_of_deathwing_roll_control_kick_off_jump : public SpellScriptLoader
+{
+    public:
+        spell_spine_of_deathwing_roll_control_kick_off_jump() : SpellScriptLoader("spell_spine_of_deathwing_roll_control_kick_off_jump") { }
 
-    SpellScript* GetSpellScript() const override
-    {
-        return new spell_spine_of_deathwing_roll_control_SpellScript();
-    }
+        class spell_spine_of_deathwing_roll_control_kick_off_jump_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_spine_of_deathwing_roll_control_kick_off_jump_SpellScript);
+
+            bool Load() override
+            {
+                return GetCaster()->GetInstanceScript() != nullptr;
+            }
+
+            void RelocateDest(SpellEffIndex /*effIndex*/)
+            {
+                GetHitDest()->RelocateOffset({ -20.0f, -100.0f, 20.0f, 0.0f });
+            }
+
+            void Register() override
+            {
+                OnEffectLaunch += SpellEffectFn(spell_spine_of_deathwing_roll_control_kick_off_jump_SpellScript::RelocateDest, EFFECT_0, SPELL_EFFECT_TELEPORT_UNITS);
+            }
+        };
+
+        SpellScript* GetSpellScript() const override
+        {
+            return new spell_spine_of_deathwing_roll_control_kick_off_jump_SpellScript();
+        }
 };
 
 // http://www.wowhead.com/spell=105740
 class spell_spine_of_deathwing_roll_control_kick_off : public SpellScriptLoader
 {
-public:
-    spell_spine_of_deathwing_roll_control_kick_off() : SpellScriptLoader("spell_spine_of_deathwing_roll_control_kick_off") {}
+    public:
+        spell_spine_of_deathwing_roll_control_kick_off() : SpellScriptLoader("spell_spine_of_deathwing_roll_control_kick_off") {}
 
-    class spell_spine_of_deathwing_roll_control_kick_off_SpellScript : public SpellScript
-    {
-        PrepareSpellScript(spell_spine_of_deathwing_roll_control_kick_off_SpellScript);
-
-        void HandleScript(SpellEffIndex index)
+        class spell_spine_of_deathwing_roll_control_kick_off_SpellScript : public SpellScript
         {
-            PreventHitAura();
-            GetHitUnit()->GetMotionMaster()->MoveJump(-13855.85f, -13841.3f, 300.0f, 30.0f, 20.0f);
-        }
+            PrepareSpellScript(spell_spine_of_deathwing_roll_control_kick_off_SpellScript);
 
-        void FilterTargets(std::list<WorldObject*>& targets)
-        {
-            targets.remove_if([](WorldObject* target)
+            void FilterTargets(std::list<WorldObject*>& targets)
             {
-                if (target->GetTypeId() == TYPEID_UNIT && target->GetEntry() == NPC_HIDEOUS_AMALGAMATION)
-                    return true;
+                targets.remove_if([](WorldObject* target)
+                {
+                    if (target->GetTypeId() == TYPEID_UNIT && target->GetEntry() == NPC_HIDEOUS_AMALGAMATION)
+                        return true;
 
-                if (target->GetTypeId() == TYPEID_PLAYER && (target->ToPlayer()->HasAura(SPELL_GRASPING_TENDRILS_AURA) || target->ToPlayer()->HasAura(SPELL_FIERY_GRIP)))
-                    return true;
+                    if (target->ToUnit()->HasAura(SPELL_GRASPING_TENDRILS_AURA) || target->ToUnit()->HasAura(SPELL_FIERY_GRIP))
+                        return true;
 
-                return false;
-            });
-        }
+                    return false;
+                });
+            }
 
-        void Register() override
+            void Register() override
+            {
+                OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_spine_of_deathwing_roll_control_kick_off_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
+            }
+        };
+
+        SpellScript* GetSpellScript() const override
         {
-            OnEffectHitTarget += SpellEffectFn(spell_spine_of_deathwing_roll_control_kick_off_SpellScript::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
-            OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_spine_of_deathwing_roll_control_kick_off_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
-    {
-        return new spell_spine_of_deathwing_roll_control_kick_off_SpellScript();
+            return new spell_spine_of_deathwing_roll_control_kick_off_SpellScript();
     }
 };
 
 // http://www.wowhead.com/spell=105845
-class spell_nuclear_blast : public SpellScriptLoader
+class spell_spine_of_deathwing_nuclear_blast : public SpellScriptLoader
 {
-public:
-    spell_nuclear_blast() : SpellScriptLoader("spell_nuclear_blast") {}
+    public:
+        spell_spine_of_deathwing_nuclear_blast() : SpellScriptLoader("spell_spine_of_deathwing_nuclear_blast") {}
 
-    class spell_nuclear_blast_SpellScript : public SpellScript
-    {
-        PrepareSpellScript(spell_nuclear_blast_SpellScript);
-
-        void HandleAfterCast()
+        class spell_spine_of_deathwing_nuclear_blast_SpellScript : public SpellScript
         {
-            GetCaster()->CastSpell((Unit*)NULL, SPELL_NUCLEAR_BLAST_SCRIPT_EFFECT, true);
-            GetCaster()->Kill(GetCaster());
-        }
+            PrepareSpellScript(spell_spine_of_deathwing_nuclear_blast_SpellScript);
 
-        void Register() override
+            void HandleAfterCast()
+            {
+                GetCaster()->CastSpell(static_cast<Unit*>(nullptr), SPELL_NUCLEAR_BLAST_SCRIPT_EFFECT, true);
+                GetCaster()->Kill(GetCaster());
+            }
+
+            void Register() override
+            {
+                AfterCast += SpellCastFn(spell_spine_of_deathwing_nuclear_blast_SpellScript::HandleAfterCast);
+            }
+        };
+
+        SpellScript* GetSpellScript() const override
         {
-            AfterCast += SpellCastFn(spell_nuclear_blast_SpellScript::HandleAfterCast);
+            return new spell_spine_of_deathwing_nuclear_blast_SpellScript();
         }
-    };
-
-    SpellScript* GetSpellScript() const override
-    {
-        return new spell_nuclear_blast_SpellScript();
-    }
 };
 
 // http://www.wowhead.com/spell=105846
-class spell_nuclear_blast_script_effect : public SpellScriptLoader
+class spell_spine_of_deathwing_nuclear_blast_script_effect : public SpellScriptLoader
 {
-public:
-    spell_nuclear_blast_script_effect() : SpellScriptLoader("spell_nuclear_blast_script_effect") {}
+    public:
+        spell_spine_of_deathwing_nuclear_blast_script_effect() : SpellScriptLoader("spell_spine_of_deathwing_nuclear_blast_script_effect") {}
 
-    class spell_nuclear_blast_script_effect_SpellScript : public SpellScript
-    {
-        PrepareSpellScript(spell_nuclear_blast_script_effect_SpellScript);
-
-        void FilterTargets(std::list<WorldObject*>& targets)
+        class spell_spine_of_deathwing_nuclear_blast_script_effect_SpellScript : public SpellScript
         {
-            Unit* caster = GetCaster();
-            targets.remove_if([caster](WorldObject* target)
+            PrepareSpellScript(spell_spine_of_deathwing_nuclear_blast_script_effect_SpellScript);
+
+            void FilterTargets(std::list<WorldObject*>& targets)
             {
-                return !(target->GetTypeId() == TYPEID_UNIT && caster->GetDistance2d(target) < 10.0f && (target->GetEntry() == NPC_BURNING_TENDON_1 || target->GetEntry() == NPC_BURNING_TENDON_2));
-            });
-            targets.sort(Trinity::ObjectDistanceOrderPred(GetCaster()));
-            if (!targets.empty())
-                targets.resize(1);
-            else if (GetCaster()->GetTypeId() == TYPEID_UNIT && GetCaster()->IsAIEnabled)
-                GetCaster()->ToCreature()->AI()->Talk(EMOTE_AMALG_NUCLEAR_BLAST_FAIL);
-        }
+                targets.remove_if([](WorldObject* target)
+                {
+                    return target->GetEntry() != NPC_BURNING_TENDON_1 || target->GetEntry() != NPC_BURNING_TENDON_2;
+                });
+                targets.sort(Trinity::ObjectDistanceOrderPred(GetCaster()));
 
-        void Register() override
+                if (targets.empty())
+                    if (Creature* caster = GetCaster()->ToCreature())
+                        if (caster->IsAIEnabled)
+                            caster->AI()->Talk(EMOTE_AMALG_NUCLEAR_BLAST_FAIL);
+            }
+
+            void
+
+            void Register() override
+            {
+                OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_spine_of_deathwing_nuclear_blast_script_effect_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENTRY);
+            }
+        };
+
+        SpellScript* GetSpellScript() const override
         {
-            OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_nuclear_blast_script_effect_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENTRY);
+            return new spell_spine_of_deathwing_nuclear_blast_script_effect_SpellScript();
         }
-    };
-
-    SpellScript* GetSpellScript() const override
-    {
-        return new spell_nuclear_blast_script_effect_SpellScript();
-    }
 };
 
 // http://www.wowhead.com/spell=106199
@@ -1734,14 +1723,14 @@ class spell_spine_of_deathwing_blood_corruption : public SpellScriptLoader
                 std::list<WorldObject*> leftTargets;
                 std::list<WorldObject*> rightTargets;
                 for (auto target : targets)
-                    if (target->GetPositionX() < GetCaster()->GetPositionX())
+                    if (GetCaster()->GetAngle(target) + M_PI * 2 < GetCaster()->GetOrientation() + M_PI * 2)
                         leftTargets.push_back(target);
                     else
                         rightTargets.push_back(target);
 
                 targets.clear();
 
-                if (GetSpellInfo()->Effects[EFFECT_1].BasePoints == 0) //Left
+                if (GetSpellInfo()->GetEffect(EFFECT_1)->BasePoints == 0) //Left
                     targets.push_back(getTarget(leftTargets, rightTargets));
                 else
                     targets.push_back(getTarget(rightTargets, leftTargets));
@@ -1794,9 +1783,9 @@ class spell_spine_of_deathwing_blood_corruption : public SpellScriptLoader
                         if (!GetCaster())
                             return;
 
-                        int32 dispels = GetSpellInfo()->Effects[EFFECT_1].BasePoints + 2;
+                        int32 dispels = GetSpellInfo()->GetEffect(EFFECT_1)->BasePoints + 2;
                         std::cout << "\ndispels: " << dispels << "\n";
-                        if (_spellId == SPELL_BLOOD_CORRUPTION_EARTH || (_spellId == SPELL_BLOOD_CORRUPTION_DEATH && (dispels == 2 && urand(1, 2) == 1) || dispels == 4)) //50% chance to turn to earth on 2 dispels, 100% on 4.
+                        if (_spellId == SPELL_BLOOD_CORRUPTION_EARTH || (_spellId == SPELL_BLOOD_CORRUPTION_DEATH && ((dispels >= 2 && dispels < 4) && urand(1, 2) == 1) || dispels == 4)) //50% chance to turn to earth on 2 dispels, 100% on 4.
                             GetCaster()->CastCustomSpell(SPELL_BLOOD_CORRUPTION_EARTH, SPELLVALUE_BASE_POINT1, dispels, GetTarget(), TRIGGERED_FULL_MASK, NULL, NULL, GetCasterGUID());
                         else
                             GetCaster()->CastCustomSpell(SPELL_BLOOD_CORRUPTION_DEATH, SPELLVALUE_BASE_POINT1, dispels, GetTarget(), TRIGGERED_FULL_MASK, NULL, NULL, GetCasterGUID());
@@ -1807,10 +1796,7 @@ class spell_spine_of_deathwing_blood_corruption : public SpellScriptLoader
                             return;
 
                         if (_spellId == SPELL_BLOOD_CORRUPTION_EARTH)
-                            if (GetCaster()->GetMap()->Is25ManRaid())
-                                GetTarget()->SetAuraStack(SPELL_BLOOD_OF_NELTHARION, GetTarget(), 2);
-                            else
-                                GetTarget()->CastSpell((Unit*)NULL, SPELL_BLOOD_OF_NELTHARION, true);
+                            GetTarget()->SetAuraStack(SPELL_BLOOD_OF_NELTHARION, GetTarget(), GetCaster()->GetMap()->Is25ManRaid() ? 2 : 1);
                         else
                             GetTarget()->CastSpell((Unit*)NULL, SPELL_BLOOD_OF_DEATHWING, true);
                     case AURA_REMOVE_BY_DEATH:
@@ -2007,8 +1993,8 @@ public:
 
         void HandleHit(SpellEffIndex effIndex)
         {
-            int32 _altPower = GetHitUnit()->GetPower(POWER_ALTERNATE_POWER);
-            GetHitUnit()->SetPower(POWER_ALTERNATE_POWER, _altPower < 9 ? _altPower + 1 : _altPower);
+            int32 alternatePower = GetHitUnit()->GetPower(POWER_ALTERNATE_POWER);
+            GetHitUnit()->SetPower(POWER_ALTERNATE_POWER, alternatePower < 9 ? alternatePower + GetEffectValue() : alternatePower);
         }
 
         void Register() override
@@ -2023,45 +2009,16 @@ public:
     }
 };
 
-// http://www.wowhead.com/spell=100341
-class spell_sod_activate_spawner : public SpellScriptLoader
+class at_spine_of_deathwing_kill_zone : public AreaTriggerScript
 {
     public:
-        spell_sod_activate_spawner() : SpellScriptLoader("spell_sod_activate_spawner") {}
+        at_spine_of_deathwing_kill_zone() : AreaTriggerScript("at_spine_of_deathwing_kill_zone") {}
 
-        class spell_sod_activate_spawner_SpellScript : public SpellScript
-        {
-            PrepareSpellScript(spell_sod_activate_spawner_SpellScript);
-
-            void SelectTarget(WorldObject*& target)
-            {
-                target = (WorldObject*)NULL;
-                if (Creature* spawner = GetCaster()->FindNearestCreature(NPC_SPAWNER, 2.5f))
-                    target = spawner;
-            }
-
-            void Register() override
-            {
-                OnObjectTargetSelect += SpellObjectTargetSelectFn(spell_sod_activate_spawner_SpellScript::SelectTarget, EFFECT_1, TARGET_UNIT_NEARBY_ENTRY);
-            }
-        };
-
-        SpellScript* GetSpellScript() const override
-        {
-            return new spell_sod_activate_spawner_SpellScript();
-        }
-};
-
-class at_spine_of_deathwing : public AreaTriggerScript
-{
-    public:
-        at_spine_of_deathwing() : AreaTriggerScript("at_spine_of_deathwing") {}
-
-        bool OnTrigger(Player* player, AreaTriggerEntry const* /*trigger*/) override
+        bool OnTrigger(Player* player, AreaTriggerEntry const* /*trigger*/, bool entered) override
         {
             if (player->IsAlive() && !player->IsGameMaster())
                 if (InstanceScript* instance = player->GetInstanceScript())
-                    if (Creature* deathwing = instance->instance->GetCreature(instance->GetGuidData(NPC_SPINE_OF_DEATHWING))) //More proper way to get a creature?
+                    if (Creature* deathwing = instance->GetCreature(DATA_SPINE_OF_DEATHWING))
                         deathwing->Kill(player);
 
             return true;
@@ -2089,8 +2046,9 @@ void AddSC_boss_spine_of_deathwing()
 	new npc_sod_spawner();
 	new npc_sod_corruption();
 
-    new spell_searing_plasma_fiery_grip();
-    new spell_superheated_nucleus();
+    new spell_spine_of_deathwing_fiery_grip();
+    new spell_spine_of_deathwing_searing_plasma();
+    new spell_spine_of_deathwing_superheated_nucleus();
     new spell_spine_of_deathwing_roll_control_jump();
     new spell_spine_of_deathwing_summon_tentacle();
     new spell_spine_of_deathwing_summon_slime();
@@ -2099,17 +2057,16 @@ void AddSC_boss_spine_of_deathwing()
     new spell_spine_of_deathwing_seal_armor_breach();
     new spell_spine_of_deathwing_roll_control();
     new spell_spine_of_deathwing_roll_control_kick_off();
-    new spell_nuclear_blast();
-    new spell_nuclear_blast_script_effect();
+    new spell_spine_of_deathwing_roll_control_kick_off_jump();
+    new spell_spine_of_deathwing_nuclear_blast();
+    new spell_spine_of_deathwing_nuclear_blast_script_effect();
     //new spell_spine_of_deathwing_blood_corruption("spell_blood_corruption_death", SPELL_BLOOD_CORRUPTION_DEATH);
     //new spell_spine_of_deathwing_blood_corruption("spell_blood_corruption_earth", SPELL_BLOOD_CORRUPTION_EARTH);
     new spell_spine_of_deathwing_absorb_blood();
     new spell_spine_of_deathwing_energize();
 
-    //new
-    new spell_sod_activate_spawner();
 
-    new at_spine_of_deathwing();
+    new at_spine_of_deathwing_kill_zone();
 
     new achievement_maybe_hell_get_dizzy();
 }

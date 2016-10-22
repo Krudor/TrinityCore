@@ -55,6 +55,11 @@ enum Events
     EVENT_RESET_MADNESS,
 };
 
+ObjectData const creatureData[] =
+{
+    { NPC_SPINE_OF_DEATHWING, DATA_SPINE_OF_DEATHWING }
+};
+
 class instance_dragon_soul : public InstanceMapScript
 {
     public:
@@ -64,6 +69,7 @@ class instance_dragon_soul : public InstanceMapScript
         {
             instance_dragon_soul_InstanceMapScript(Map* map) : InstanceScript(map)
             {
+                LoadObjectData(creatureData, nullptr);
                 SetBossNumber(MAX_ENCOUNTER);
 				_disabledDSBuff = NOT_STARTED; //Untouched (ON)
                 _ultraxionTrashState = NOT_STARTED;
@@ -230,14 +236,14 @@ class instance_dragon_soul : public InstanceMapScript
                         _modAlexstraszaGUID = creature->GetGUID();
                         break;
                     case NPC_PLATFORM:
-                        if (creature->GetGuidScriptId() == GSID_KALECGOS_PLATFORM)
-                            _modPlatformKalecgosGUID = creature->GetGUID();
-                        else if (creature->GetGuidScriptId() == GSID_YSERA_PLATFORM)
-                            _modPlatformYseraGUID = creature->GetGUID();
-                        else if (creature->GetGuidScriptId() == GSID_NOZDORMU_PLATFORM)
-                            _modPlatformNozdormuGUID = creature->GetGUID();
-                        else if (creature->GetGuidScriptId() == GSID_ALEXSTRASZA_PLATFORM)
-                            _modPlatformAlexstraszaGUID = creature->GetGUID();
+                        //if (creature->GetGuidScriptId() == GSID_KALECGOS_PLATFORM)
+                        //    _modPlatformKalecgosGUID = creature->GetGUID();
+                        //else if (creature->GetGuidScriptId() == GSID_YSERA_PLATFORM)
+                        //    _modPlatformYseraGUID = creature->GetGUID();
+                        //else if (creature->GetGuidScriptId() == GSID_NOZDORMU_PLATFORM)
+                        //    _modPlatformNozdormuGUID = creature->GetGUID();
+                        //else if (creature->GetGuidScriptId() == GSID_ALEXSTRASZA_PLATFORM)
+                        //    _modPlatformAlexstraszaGUID = creature->GetGUID();
                         break;
                     case NPC_MOD_DRAGON_SOUL:
                         if (!instance->GetCreature(_modDragonSoulGUID))
@@ -525,13 +531,13 @@ class instance_dragon_soul : public InstanceMapScript
                 {
 					case DATA_DS_BUFF_STATE:
 						_disabledDSBuff = data;
-						if (_disabledDSBuff == DONE)
-						{
-							boost::shared_lock<boost::shared_mutex> lock(*HashMapHolder<Creature>::GetLock());
-							HashMapHolder<Creature>::MapType const& m = ObjectAccessor::GetCreatures();
-							for (auto creature : m)
-								creature.second->RemoveAurasDueToSpell(SPELL_POWER_OF_THE_ASPECTS_35);
-						}
+						//if (_disabledDSBuff == DONE)
+						//{
+						//	boost::shared_lock<boost::shared_mutex> lock(*HashMapHolder<Creature>::GetLock());
+						//	HashMapHolder<Creature>::MapType const& m = ObjectAccessor::GetCreatures();
+						//	for (auto creature : m)
+						//		creature.second->RemoveAurasDueToSpell(SPELL_POWER_OF_THE_ASPECTS_35);
+						//}
 						break;
                     case DATA_DRAGON_SOUL_EVENT_PROGRESS:
                         SetDragonSoulProgress((DragonSoulEventProgress)data);
@@ -584,20 +590,20 @@ class instance_dragon_soul : public InstanceMapScript
                     //        break;
                     //}
 
-                    if (enable)
-                    {
-                        teleporter->AddAura(SPELL_TELEPORTER_ACTIVE, teleporter);
-                        teleporter->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_SPELLCLICK);
-						if (Creature* afrastrasz = GetCreature(_lordAfrasastraszGUID))
-							afrastrasz->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
-                    }
-                    else
-                    {
-                        teleporter->RemoveAura(SPELL_TELEPORTER_ACTIVE);
-                        teleporter->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_SPELLCLICK);
-						if (Creature* afrastrasz = GetCreature(_lordAfrasastraszGUID)) //Do not allow players to switch the dragon soul buff off during an encounter
-							afrastrasz->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
-                    }
+      //              if (enable)
+      //              {
+      //                  teleporter->AddAura(SPELL_TELEPORTER_ACTIVE, teleporter);
+      //                  teleporter->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_SPELLCLICK);
+						//if (Creature* afrastrasz = GetCreature(_lordAfrasastraszGUID))
+						//	afrastrasz->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
+      //              }
+      //              else
+      //              {
+      //                  teleporter->RemoveAura(SPELL_TELEPORTER_ACTIVE);
+      //                  teleporter->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_SPELLCLICK);
+						//if (Creature* afrastrasz = GetCreature(_lordAfrasastraszGUID)) //Do not allow players to switch the dragon soul buff off during an encounter
+						//	afrastrasz->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
+      //              }
                 }
                 /*for (auto guid : _dragonSoulTeleporters)
                     if (Creature* teleporter = instance->GetCreature(guid))

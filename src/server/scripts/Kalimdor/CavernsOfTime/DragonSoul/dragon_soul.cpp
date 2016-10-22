@@ -1,6 +1,10 @@
 #include "ScriptMgr.h"
 #include "dragon_soul.h"
 #include "ScriptedEscortAI.h"
+#include "SpellAuras.h"
+#include "SpellScript.h"
+#include "ScriptedCreature.h"
+#include "SharedDefines.h"
 
 /*
     Events Unfold - Hagara
@@ -10,7 +14,7 @@
 enum Spells
 {
 	//Deathwing
-	SPELL_MOLTEN_METEOR					= 105022, //Far Circle
+	SPELL_MOLTEN_METEOR					            = 105022, //Far Circle
 
     // Hagara Intro
     SPELL_EVENTS_UNFOLD_HAGARA                      = 110952,
@@ -74,8 +78,7 @@ enum Events
     EVENT_EVENTS_UNFOLD_HAGARA_9,
     EVENT_EVENTS_UNFOLD_HAGARA_10,
     EVENT_EVENTS_UNFOLD_HAGARA_11,
-    EVENT_EVENTS_UNFOLD_HAGARA_12,
-    EVENT_COSMETIC_EMOTE,
+    EVENT_EVENTS_UNFOLD_HAGARA_12
 };
 
 enum DragonSoulData
@@ -96,112 +99,41 @@ enum DragonSoulData
     DATA_TWILIGHT_FLAMES                = 1,
 };
 
-// http://www.wowhead.com/npc=56630
-class npc_ds_alexstrasza_56630 : public CreatureScript
+uint32 const TwilightFlamesMapping[12] =
 {
-public:
-    npc_ds_alexstrasza_56630() : CreatureScript("npc_ds_alexstrasza_56630") {}
-
-    struct npc_ds_alexstrasza_56630AI : public ScriptedAI
-    {
-        npc_ds_alexstrasza_56630AI(Creature* creature) : ScriptedAI(creature), instance(creature->GetInstanceScript()) { }
-
-        void InitializeAI() override
-        {
-            JustRespawned();
-        }
-
-        void EnterEvadeMode() override
-        {
-            events.Reset();
-
-            uint32 corpseDelay = me->GetCorpseDelay();
-            uint32 respawnDelay = me->GetRespawnDelay();
-
-            me->SetCorpseDelay(1);
-            me->SetRespawnDelay(29);
-
-            me->DespawnOrUnsummon();
-
-            me->SetCorpseDelay(corpseDelay);
-            me->SetRespawnDelay(respawnDelay);
-
-            Position home = me->GetHomePosition();
-            me->NearTeleportTo(home.GetPositionX(), home.GetPositionY(), home.GetPositionZ(), home.GetOrientation());
-        }
-
-        void JustRespawned() override
-        {
-            if (me->GetAreaId() == AREA_ABOVE_THE_FROZEN_SEA)
-            {
-                DoCastAOE(SPELL_ALEXSTRASZA_CHARGE_DS_GUNSHIP);
-                events.ScheduleEvent(EVENT_CHANNEL_DS_GUNSHIP, 1 * IN_MILLISECONDS);
-            }
-
-            CreatureAI::JustRespawned();
-        }
-
-        /*void MovementInform(uint32 type, uint32 id) override
-        {
-        }*/
-
-        void UpdateAI(uint32 diff) override
-        {
-            events.Update(diff);
-
-            while (uint32 eventId = events.ExecuteEvent())
-            {
-                switch (eventId)
-                {
-                case EVENT_CHANNEL_DS_GUNSHIP:
-                    if (!me->HasUnitState(UNIT_STATE_CASTING))
-                        DoCastAOE(SPELL_ALEXSTRASZA_CHARGE_DS_GUNSHIP);
-                    events.ScheduleEvent(EVENT_CHANNEL_DS_GUNSHIP, 1 * IN_MILLISECONDS);
-                    break;
-                default:
-                    break;
-                }
-            }
-        }
-
-    private:
-        EventMap events;
-        InstanceScript* instance;
-    };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return new npc_ds_alexstrasza_56630AI(creature);
-    }
+    { SPELL_TWILIGHT_FLAMES_GROUP_1 },
+    { SPELL_TWILIGHT_FLAMES_GROUP_2 },
+    { SPELL_TWILIGHT_FLAMES_GROUP_3 },
+    { SPELL_TWILIGHT_FLAMES_GROUP_4 },
+    { SPELL_TWILIGHT_FLAMES_GROUP_5 },
+    { SPELL_TWILIGHT_FLAMES_GROUP_6 },
+    { SPELL_TWILIGHT_FLAMES_GROUP_7 },
+    { SPELL_TWILIGHT_FLAMES_GROUP_8 },
+    { SPELL_TWILIGHT_FLAMES_GROUP_9 },
+    { SPELL_TWILIGHT_FLAMES_GROUP_10 },
+    { SPELL_TWILIGHT_FLAMES_GROUP_11 },
+    { SPELL_TWILIGHT_FLAMES_GROUP_12 },
 };
 
-// http://www.wowhead.com/npc=56664
-class npc_ds_kalecgos_56664 : public CreatureScript
+// http://www.wowhead.com/npc=56630
+class npc_ds_alexstrasza_part_one : public CreatureScript
 {
     public:
-        npc_ds_kalecgos_56664() : CreatureScript("npc_ds_kalecgos_56664") {}
+        npc_ds_alexstrasza_part_one() : CreatureScript("npc_ds_alexstrasza_part_one") {}
 
-        struct npc_ds_kalecgos_56664AI : public ScriptedAI
+        struct npc_ds_alexstrasza_part_oneAI : public ScriptedAI
         {
-            npc_ds_kalecgos_56664AI(Creature* creature) : ScriptedAI(creature), instance(creature->GetInstanceScript()) { }
+            npc_ds_alexstrasza_part_oneAI(Creature* creature) : ScriptedAI(creature) { }
 
-            void InitializeAI() override
+            void EnterEvadeMode(EvadeReason) override
             {
-                JustRespawned();
-            }
-
-            void EnterEvadeMode() override
-            {
-                events.Reset();
+                _scheduler.CancelAll();
 
                 uint32 corpseDelay = me->GetCorpseDelay();
                 uint32 respawnDelay = me->GetRespawnDelay();
-
                 me->SetCorpseDelay(1);
                 me->SetRespawnDelay(29);
-
                 me->DespawnOrUnsummon();
-
                 me->SetCorpseDelay(corpseDelay);
                 me->SetRespawnDelay(respawnDelay);
 
@@ -209,48 +141,193 @@ class npc_ds_kalecgos_56664 : public CreatureScript
                 me->NearTeleportTo(home.GetPositionX(), home.GetPositionY(), home.GetPositionZ(), home.GetOrientation());
             }
 
-            void JustRespawned() override
+            void Reset() override
             {
-                if (me->GetAreaId() == AREA_ABOVE_THE_FROZEN_SEA)
+                switch (me->GetAreaId())
                 {
-                    DoCastAOE(SPELL_KALECGOS_CHARGE_DS_GUNSHIP);
-                    events.ScheduleEvent(EVENT_CHANNEL_DS_GUNSHIP, 1 * IN_MILLISECONDS);
-                }
-
-                CreatureAI::JustRespawned();
-            }
-
-            /*void MovementInform(uint32 type, uint32 id) override
-            {
-            }*/
-
-            void UpdateAI(uint32 diff) override
-            {
-                events.Update(diff);
-
-                while (uint32 eventId = events.ExecuteEvent())
-                {
-                    switch (eventId)
-                    {
-                    case EVENT_CHANNEL_DS_GUNSHIP:
-                        if (!me->HasUnitState(UNIT_STATE_CASTING))
-                            DoCastAOE(SPELL_KALECGOS_CHARGE_DS_GUNSHIP);
-                        events.ScheduleEvent(EVENT_CHANNEL_DS_GUNSHIP, 1 * IN_MILLISECONDS);
+                    case AREA_ABOVE_THE_FROZEN_SEA:
+                        DoCastAOE(SPELL_ALEXSTRASZA_CHARGE_DS_GUNSHIP);
+                        _scheduler.Schedule(Seconds(1), [this](TaskContext context)
+                        {
+                            if (!me->HasUnitState(UNIT_STATE_CASTING))
+                                DoCastAOE(SPELL_ALEXSTRASZA_CHARGE_DS_GUNSHIP);
+                            context.Repeat();
+                        });
                         break;
                     default:
                         break;
-                    }
                 }
             }
 
         private:
-            EventMap events;
-            InstanceScript* instance;
+            TaskScheduler _scheduler;
         };
 
         CreatureAI* GetAI(Creature* creature) const override
         {
-            return new npc_ds_kalecgos_56664AI(creature);
+            return new npc_ds_alexstrasza_part_oneAI(creature);
+        }
+};
+
+// http://www.wowhead.com/npc=56664
+class npc_ds_kalecgos_part_one : public CreatureScript
+{
+    public:
+        npc_ds_kalecgos_part_one() : CreatureScript("npc_ds_kalecgos_part_one") {}
+
+        struct npc_ds_kalecgos_part_oneAI : public ScriptedAI
+        {
+            npc_ds_kalecgos_part_oneAI(Creature* creature) : ScriptedAI(creature) { }
+
+            void EnterEvadeMode(EvadeReason) override
+            {
+                _scheduler.CancelAll();
+
+                uint32 corpseDelay = me->GetCorpseDelay();
+                uint32 respawnDelay = me->GetRespawnDelay();
+                me->SetCorpseDelay(1);
+                me->SetRespawnDelay(29);
+                me->DespawnOrUnsummon();
+                me->SetCorpseDelay(corpseDelay);
+                me->SetRespawnDelay(respawnDelay);
+
+                Position home = me->GetHomePosition();
+                me->NearTeleportTo(home.GetPositionX(), home.GetPositionY(), home.GetPositionZ(), home.GetOrientation());
+            }
+
+            void Reset() override
+            {
+                switch (me->GetAreaId())
+                {
+                    case AREA_ABOVE_THE_FROZEN_SEA:
+                        DoCastAOE(SPELL_KALECGOS_CHARGE_DS_GUNSHIP);
+                        _scheduler.Schedule(Seconds(1), [this](TaskContext context)
+                        {
+                            if (!me->HasUnitState(UNIT_STATE_CASTING))
+                                DoCastAOE(SPELL_KALECGOS_CHARGE_DS_GUNSHIP);
+                            context.Repeat();
+                        });
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+        private:
+            TaskScheduler _scheduler;
+        };
+
+        CreatureAI* GetAI(Creature* creature) const override
+        {
+            return new npc_ds_kalecgos_part_oneAI(creature);
+        }
+};
+
+// http://www.wowhead.com/npc=56665
+class npc_ds_ysera_part_one : public CreatureScript
+{
+    public:
+        npc_ds_ysera_part_one() : CreatureScript("npc_ds_ysera_part_one") {}
+
+        struct npc_ds_ysera_part_oneAI : public ScriptedAI
+        {
+            npc_ds_ysera_part_oneAI(Creature* creature) : ScriptedAI(creature) { }
+
+            void EnterEvadeMode(EvadeReason) override
+            {
+                _scheduler.CancelAll();
+
+                uint32 corpseDelay = me->GetCorpseDelay();
+                uint32 respawnDelay = me->GetRespawnDelay();
+                me->SetCorpseDelay(1);
+                me->SetRespawnDelay(29);
+                me->DespawnOrUnsummon();
+                me->SetCorpseDelay(corpseDelay);
+                me->SetRespawnDelay(respawnDelay);
+
+                Position home = me->GetHomePosition();
+                me->NearTeleportTo(home.GetPositionX(), home.GetPositionY(), home.GetPositionZ(), home.GetOrientation());
+            }
+
+            void Reset() override
+            {
+                switch (me->GetAreaId())
+                {
+                    case AREA_ABOVE_THE_FROZEN_SEA:
+                        DoCastAOE(SPELL_YSERA_CHARGE_DS_GUNSHIP);
+                        _scheduler.Schedule(Seconds(1), [this](TaskContext context)
+                        {
+                            if (!me->HasUnitState(UNIT_STATE_CASTING))
+                                DoCastAOE(SPELL_YSERA_CHARGE_DS_GUNSHIP);
+                            context.Repeat();
+                        });
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+        private:
+            TaskScheduler _scheduler;
+        };
+
+        CreatureAI* GetAI(Creature* creature) const override
+        {
+            return new npc_ds_ysera_part_oneAI(creature);
+        }
+};
+
+// http://www.wowhead.com/npc=56666
+class npc_ds_nozdormu_part_one : public CreatureScript
+{
+    public:
+        npc_ds_nozdormu_part_one() : CreatureScript("npc_ds_nozdormu_part_one") {}
+
+        struct npc_ds_nozdormu_part_oneAI : public ScriptedAI
+        {
+            npc_ds_nozdormu_part_oneAI(Creature* creature) : ScriptedAI(creature) { }
+
+            void EnterEvadeMode(EvadeReason) override
+            {
+                _scheduler.CancelAll();
+
+                uint32 corpseDelay = me->GetCorpseDelay();
+                uint32 respawnDelay = me->GetRespawnDelay();
+                me->SetCorpseDelay(1);
+                me->SetRespawnDelay(29);
+                me->DespawnOrUnsummon();
+                me->SetCorpseDelay(corpseDelay);
+                me->SetRespawnDelay(respawnDelay);
+
+                Position home = me->GetHomePosition();
+                me->NearTeleportTo(home.GetPositionX(), home.GetPositionY(), home.GetPositionZ(), home.GetOrientation());
+            }
+
+            void Reset() override
+            {
+                switch (me->GetAreaId())
+                {
+                    case AREA_ABOVE_THE_FROZEN_SEA:
+                        DoCastAOE(SPELL_NOZDORMU_CHARGE_DS_GUNSHIP);
+                        _scheduler.Schedule(Seconds(1), [this](TaskContext context)
+                        {
+                            if (!me->HasUnitState(UNIT_STATE_CASTING))
+                                DoCastAOE(SPELL_NOZDORMU_CHARGE_DS_GUNSHIP);
+                            context.Repeat();
+                        });
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+        private:
+            TaskScheduler _scheduler;
+        };
+
+        CreatureAI* GetAI(Creature* creature) const override
+        {
+            return new npc_ds_nozdormu_part_oneAI(creature);
         }
 };
 
@@ -258,586 +335,260 @@ class npc_ds_kalecgos_56664 : public CreatureScript
 class npc_ultraxion_gauntlet : public CreatureScript
 {
     public:
-	npc_ultraxion_gauntlet() : CreatureScript("npc_ultraxion_gauntlet") {}
+	    npc_ultraxion_gauntlet() : CreatureScript("npc_ultraxion_gauntlet") {}
 
-	struct npc_ultraxion_gauntletAI : public PassiveAI
-	{
-		npc_ultraxion_gauntletAI(Creature* creature) : PassiveAI(creature), instance(creature->GetInstanceScript()) { }
+	    struct npc_ultraxion_gauntletAI : public PassiveAI
+	    {
+		    npc_ultraxion_gauntletAI(Creature* creature) : PassiveAI(creature), instance(creature->GetInstanceScript()) { }
 
-		void InitializeAI() override
-		{
-			JustRespawned();
-		}
+		    void InitializeAI() override
+		    {
+			    JustRespawned();
+		    }
 
-		void JustRespawned() override
-		{
-            for (int i = 0; i < 12; i++)
-            {
-                std::list<TempSummon*> summonGroup;
-                me->SummonCreatureGroup(i, &summonGroup);
-                for(auto summon : summonGroup)
+		    void JustRespawned() override
+		    {
+                for (int i = 0; i < 12; i++)
                 {
-                    if (summon->IsAIEnabled)
-                        summon->AI()->SetData(DATA_TWILIGHT_FLAMES, i);
+                    std::list<TempSummon*> summonGroup;
+                    me->SummonCreatureGroup(i, &summonGroup);
+                    for(auto summon : summonGroup)
+                    {
+                        if (summon->IsAIEnabled)
+                            summon->AI()->SetData(DATA_TWILIGHT_FLAMES, i);
+                    }
                 }
-            }
-		}
+		    }
 
-	private:
-		EventMap events;
-		InstanceScript* instance;
-	};
+	    private:
+		    EventMap events;
+		    InstanceScript* instance;
+	    };
 
-	CreatureAI* GetAI(Creature* creature) const override
-	{
-		return new npc_ultraxion_gauntletAI(creature);
-	}
+	    CreatureAI* GetAI(Creature* creature) const override
+	    {
+		    return new npc_ultraxion_gauntletAI(creature);
+	    }
 };
 
 // http://www.wowhead.com/npc=57281/twilight-assaulter
 class npc_twilight_assaulter_flames : public CreatureScript
 {
     public:
-	npc_twilight_assaulter_flames() : CreatureScript("npc_twilight_assaulter_flames") {}
+	    npc_twilight_assaulter_flames() : CreatureScript("npc_twilight_assaulter_flames") {}
 
-	struct npc_twilight_assaulter_flamesAI : public PassiveAI
-	{
-        npc_twilight_assaulter_flamesAI(Creature* creature) : PassiveAI(creature) { _flamesGroup = 100; }
+	    struct npc_twilight_assaulter_flamesAI : public PassiveAI
+	    {
+            npc_twilight_assaulter_flamesAI(Creature* creature) : PassiveAI(creature) { _flamesGroup = 100; }
 
-		void SetData(uint32 type, uint32 data) override
-        {
-            if (type != DATA_TWILIGHT_FLAMES)
-                return;
-
-            _flamesGroup = data;
-        }
-
-        uint32 GetData(uint32 type) const override
-        {
-            switch (type)
+		    void SetData(uint32 type, uint32 data) override
             {
-                case DATA_TWILIGHT_FLAMES:
-                    return _flamesGroup;
-                default:
-                    break;
+                if (type != DATA_TWILIGHT_FLAMES)
+                    return;
+
+                _flamesGroup = data;
             }
 
-            return 0;
-        }
-
-        private:
-        uint32 _flamesGroup;
-	};
-
-	CreatureAI* GetAI(Creature* creature) const override
-	{
-		return new npc_twilight_assaulter_flamesAI(creature);
-	}
-};
-
-// http://www.wowhead.com/npc=56665
-class npc_ds_ysera_56665 : public CreatureScript
-{
-    public:
-        npc_ds_ysera_56665() : CreatureScript("npc_ds_ysera_56665") {}
-
-        struct npc_ds_ysera_56665AI : public ScriptedAI
-        {
-            npc_ds_ysera_56665AI(Creature* creature) : ScriptedAI(creature), instance(creature->GetInstanceScript()) { }
-
-            void InitializeAI() override
+            uint32 GetData(uint32 type) const override
             {
-                JustRespawned();
-            }
-
-            void EnterEvadeMode() override
-            {
-                events.Reset();
-
-                uint32 corpseDelay = me->GetCorpseDelay();
-                uint32 respawnDelay = me->GetRespawnDelay();
-
-                me->SetCorpseDelay(1);
-                me->SetRespawnDelay(29);
-
-                me->DespawnOrUnsummon();
-
-                me->SetCorpseDelay(corpseDelay);
-                me->SetRespawnDelay(respawnDelay);
-
-                Position home = me->GetHomePosition();
-                me->NearTeleportTo(home.GetPositionX(), home.GetPositionY(), home.GetPositionZ(), home.GetOrientation());
-            }
-
-            void JustRespawned() override
-            {
-                if (me->GetAreaId() == AREA_ABOVE_THE_FROZEN_SEA)
+                switch (type)
                 {
-                    DoCastAOE(SPELL_YSERA_CHARGE_DS_GUNSHIP);
-                    events.ScheduleEvent(EVENT_CHANNEL_DS_GUNSHIP, 1 * IN_MILLISECONDS);
-                }
-
-                CreatureAI::JustRespawned();
-            }
-
-            /*void MovementInform(uint32 type, uint32 id) override
-            {
-            }*/
-
-            void UpdateAI(uint32 diff) override
-            {
-                events.Update(diff);
-
-                while (uint32 eventId = events.ExecuteEvent())
-                {
-                    switch (eventId)
-                    {
-                    case EVENT_CHANNEL_DS_GUNSHIP:
-                        if (!me->HasUnitState(UNIT_STATE_CASTING))
-                            DoCastAOE(SPELL_YSERA_CHARGE_DS_GUNSHIP);
-                        events.ScheduleEvent(EVENT_CHANNEL_DS_GUNSHIP, 1 * IN_MILLISECONDS);
-                        break;
+                    case DATA_TWILIGHT_FLAMES:
+                        return _flamesGroup;
                     default:
                         break;
-                    }
                 }
+
+                return 0;
             }
 
-        private:
-            EventMap events;
-            InstanceScript* instance;
-        };
+            private:
+            uint32 _flamesGroup;
+	    };
 
-        CreatureAI* GetAI(Creature* creature) const override
-        {
-            return new npc_ds_ysera_56665AI(creature);
-        }
+	    CreatureAI* GetAI(Creature* creature) const override
+	    {
+		    return new npc_twilight_assaulter_flamesAI(creature);
+	    }
 };
 
-// http://www.wowhead.com/npc=56666
-class npc_ds_nozdormu_56666 : public CreatureScript
+// This is a personal spawn, TrinityCore does not currently support this (4881e45688c3d8f64cf2efaa7553ecbc02a0884a)
+// http://www.wowhead.com/npc=57946/thrall
+class npc_ds_events_unfold_thrall : public CreatureScript
 {
     public:
-        npc_ds_nozdormu_56666() : CreatureScript("npc_ds_nozdormu_56666") {}
+        npc_ds_events_unfold_thrall() : CreatureScript("npc_ds_events_unfold_thrall") {}
 
-        struct npc_ds_nozdormu_56666AI : public ScriptedAI
+        struct npc_ds_events_unfold_thrallAI : public ScriptedAI
         {
-            npc_ds_nozdormu_56666AI(Creature* creature) : ScriptedAI(creature), instance(creature->GetInstanceScript()) { }
-
-            void InitializeAI() override
-            {
-                JustRespawned();
-            }
-
-            void EnterEvadeMode() override
-            {
-                events.Reset();
-
-                uint32 corpseDelay = me->GetCorpseDelay();
-                uint32 respawnDelay = me->GetRespawnDelay();
-
-                me->SetCorpseDelay(1);
-                me->SetRespawnDelay(29);
-
-                me->DespawnOrUnsummon();
-
-                me->SetCorpseDelay(corpseDelay);
-                me->SetRespawnDelay(respawnDelay);
-
-                Position home = me->GetHomePosition();
-                me->NearTeleportTo(home.GetPositionX(), home.GetPositionY(), home.GetPositionZ(), home.GetOrientation());
-            }
-
-            void JustRespawned() override
-            {
-                if (me->GetAreaId() == AREA_ABOVE_THE_FROZEN_SEA)
-                {
-                    DoCastAOE(SPELL_NOZDORMU_CHARGE_DS_GUNSHIP);
-                    events.ScheduleEvent(EVENT_CHANNEL_DS_GUNSHIP, 1 * IN_MILLISECONDS);
-                }
-
-                CreatureAI::JustRespawned();
-            }
-
-            /*void MovementInform(uint32 type, uint32 id) override
-            {
-            }*/
-
-            void UpdateAI(uint32 diff) override
-            {
-                events.Update(diff);
-
-                while (uint32 eventId = events.ExecuteEvent())
-                {
-                    switch (eventId)
-                    {
-                    case EVENT_CHANNEL_DS_GUNSHIP:
-                        if (!me->HasUnitState(UNIT_STATE_CASTING))
-                            DoCastAOE(SPELL_NOZDORMU_CHARGE_DS_GUNSHIP);
-                        events.ScheduleEvent(EVENT_CHANNEL_DS_GUNSHIP, 1 * IN_MILLISECONDS);
-                        break;
-                    default:
-                        break;
-                    }
-                }
-            }
-
-        private:
-            EventMap events;
-            InstanceScript* instance;
-        };
-
-        CreatureAI* GetAI(Creature* creature) const override
-        {
-            return new npc_ds_nozdormu_56666AI(creature);
-        }
-};
-
-class npc_ds_thrall_events_unfold_hagara : public CreatureScript
-{
-    public:
-    npc_ds_thrall_events_unfold_hagara() : CreatureScript("npc_ds_thrall_events_unfold_hagara") {}
-
-    struct npc_ds_thrall_events_unfold_hagaraAI : public ScriptedAI
-    {
-        npc_ds_thrall_events_unfold_hagaraAI(Creature* creature) : ScriptedAI(creature) {}
-
-        void InitializeAI() override
-        {
-            if (!me->IsAlive())
-                return;
-
-            JustRespawned();
-        }
+            npc_ds_events_unfold_thrallAI(Creature* creature) : ScriptedAI(creature) {}
         
-        void JustRespawned() override
-        {
-            events.ScheduleEvent(EVENT_EVENTS_UNFOLD_HAGARA_1, 3 * IN_MILLISECONDS);
-        }
-
-        void UpdateAI(uint32 diff) override
-        {
-            events.Update(diff);
-
-            while (uint32 eventId = events.ExecuteEvent())
+            void Reset() override
             {
-                switch (eventId)
+                _scheduler.Schedule(Seconds(3), [](TaskContext context)         // After 3 seconds
                 {
-                    case EVENT_EVENTS_UNFOLD_HAGARA_1:
-                        DoCastAOE(SPELL_DIALOGUE_EVENTS_UNFOLD_HAGARA_1, true);
-                        events.ScheduleEvent(EVENT_COSMETIC_EMOTE, 8 * IN_MILLISECONDS);
-                        events.ScheduleEvent(EVENT_EVENTS_UNFOLD_HAGARA_5, 39 * IN_MILLISECONDS);
-                        break;
-                    case EVENT_EVENTS_UNFOLD_HAGARA_5:
+                    DoCastAOE(SPELL_DIALOGUE_EVENTS_UNFOLD_HAGARA_1, true);
+                    context.Schedule(Seconds(8), [this](TaskContext context)    // After 3 + 8 seconds
+                    {
+                        me->HandleEmoteCommand(EMOTE_ONESHOT_TALK);
+                    });
+                    context.Schedule(Seconds(39), [this](TaskContext context)   // After 3 + 39 seconds
+                    {
                         DoCastAOE(SPELL_DIALOGUE_EVENTS_UNFOLD_HAGARA_5, true);
-                        events.ScheduleEvent(EVENT_EVENTS_UNFOLD_HAGARA_7, 20 * IN_MILLISECONDS);
-                        break;
-                    case EVENT_EVENTS_UNFOLD_HAGARA_7:
-                        DoCastAOE(SPELL_DIALOGUE_EVENTS_UNFOLD_HAGARA_7, true);
-                        break;
-                    case EVENT_COSMETIC_EMOTE:
-                        me->HandleEmoteCommand(EMOTE_ONESHOT_TALK);
-                        break;
-                    default:
-                        break;
-                }
-            }
-        }
-
-        private:
-        EventMap events;
-    };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return new npc_ds_thrall_events_unfold_hagaraAI(creature);
-    }
-};
-
-class npc_ds_ysera_events_unfold_hagara : public CreatureScript
-{
-    public:
-    npc_ds_ysera_events_unfold_hagara() : CreatureScript("npc_ds_ysera_events_unfold_hagara") {}
-
-    struct npc_ds_ysera_events_unfold_hagaraAI : public ScriptedAI
-    {
-        npc_ds_ysera_events_unfold_hagaraAI(Creature* creature) : ScriptedAI(creature) {}
-
-        void InitializeAI() override
-        {
-            if (!me->IsAlive())
-                return;
-
-            JustRespawned();
-        }
-
-        void JustRespawned() override
-        {
-            events.ScheduleEvent(EVENT_EVENTS_UNFOLD_HAGARA_6, 52 * IN_MILLISECONDS);
-        }
-
-        void UpdateAI(uint32 diff) override
-        {
-            events.Update(diff);
-
-            while (uint32 eventId = events.ExecuteEvent())
-            {
-                switch (eventId)
-                {
-                    case EVENT_EVENTS_UNFOLD_HAGARA_6:
-                        DoCastAOE(SPELL_DIALOGUE_EVENTS_UNFOLD_HAGARA_6, true);
-                        break;
-                    default:
-                        break;
-                }
-            }
-        }
-
-        private:
-        EventMap events;
-    };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return new npc_ds_ysera_events_unfold_hagaraAI(creature);
-    }
-};
-
-class npc_ds_nozdormu_events_unfold_hagara : public CreatureScript
-{
-    public:
-    npc_ds_nozdormu_events_unfold_hagara() : CreatureScript("npc_ds_nozdormu_events_unfold_hagara") {}
-
-    struct npc_ds_nozdormu_events_unfold_hagaraAI : public ScriptedAI
-    {
-        npc_ds_nozdormu_events_unfold_hagaraAI(Creature* creature) : ScriptedAI(creature)
-        {
-        }
-    };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return new npc_ds_nozdormu_events_unfold_hagaraAI(creature);
-    }
-};
-
-class npc_ds_alexstrasza_events_unfold_hagara : public CreatureScript
-{
-    public:
-    npc_ds_alexstrasza_events_unfold_hagara() : CreatureScript("npc_ds_alexstrasza_events_unfold_hagara") {}
-
-    struct npc_ds_alexstrasza_events_unfold_hagaraAI : public ScriptedAI
-    {
-        npc_ds_alexstrasza_events_unfold_hagaraAI(Creature* creature) : ScriptedAI(creature) {}
-
-        void InitializeAI() override
-        {
-            if (!me->IsAlive())
-                return;
-
-            JustRespawned();
-        }
-
-        void JustRespawned() override
-        {
-            events.ScheduleEvent(EVENT_EVENTS_UNFOLD_HAGARA_2, 17 * IN_MILLISECONDS);
-        }
-
-        void UpdateAI(uint32 diff) override
-        {
-            events.Update(diff);
-
-            while (uint32 eventId = events.ExecuteEvent())
-            {
-                switch (eventId)
-                {
-                    case EVENT_EVENTS_UNFOLD_HAGARA_2:
-                        DoCastAOE(SPELL_DIALOGUE_EVENTS_UNFOLD_HAGARA_2, true);
-                        break;
-                    default:
-                        break;
-                }
-            }
-        }
-
-        private:
-        EventMap events;
-    };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return new npc_ds_alexstrasza_events_unfold_hagaraAI(creature);
-    }
-};
-
-class npc_ds_kalegos_events_unfold_hagara : public CreatureScript
-{
-    public:
-    npc_ds_kalegos_events_unfold_hagara() : CreatureScript("npc_ds_kalegos_events_unfold_hagara") {}
-
-    struct npc_ds_kalegos_events_unfold_hagaraAI : public ScriptedAI
-    {
-        npc_ds_kalegos_events_unfold_hagaraAI(Creature* creature) : ScriptedAI(creature) { }
-
-        void InitializeAI() override
-        {
-            if (!me->IsAlive())
-                return;
-
-            JustRespawned();
-        }
-
-        void JustRespawned() override
-        {
-            events.ScheduleEvent(EVENT_EVENTS_UNFOLD_HAGARA_3, 21 * IN_MILLISECONDS);
-        }
-
-        void UpdateAI(uint32 diff) override
-        {
-            events.Update(diff);
-
-            while (uint32 eventId = events.ExecuteEvent())
-            {
-                switch (eventId)
-                {
-                    case EVENT_COSMETIC_EMOTE:
-                        me->HandleEmoteCommand(EMOTE_ONESHOT_TALK);
-                        break;
-                    case EVENT_EVENTS_UNFOLD_HAGARA_3:
-                        DoCastAOE(SPELL_DIALOGUE_EVENTS_UNFOLD_HAGARA_3, true);
-                        events.ScheduleEvent(EVENT_COSMETIC_EMOTE, 3 * IN_MILLISECONDS);
-                        events.ScheduleEvent(EVENT_EVENTS_UNFOLD_HAGARA_4, 10 * IN_MILLISECONDS);
-                        break;
-                    case EVENT_EVENTS_UNFOLD_HAGARA_4:
-                        DoCastAOE(SPELL_DIALOGUE_EVENTS_UNFOLD_HAGARA_4, true);
-                        events.ScheduleEvent(EVENT_EVENTS_UNFOLD_HAGARA_8, 37 * IN_MILLISECONDS);
-                        break;
-                    case EVENT_EVENTS_UNFOLD_HAGARA_8:
-                        DoCastAOE(SPELL_DIALOGUE_EVENTS_UNFOLD_HAGARA_8, true);
-                        events.ScheduleEvent(EVENT_EVENTS_UNFOLD_HAGARA_9, 13 * IN_MILLISECONDS);
-                        break;
-                    case EVENT_EVENTS_UNFOLD_HAGARA_9:
-                        if (InstanceScript* instance = me->GetInstanceScript())
+                        context.Schedule(Seconds(20), [this](TaskContext)       // After 3 + 39 + 20 seconds
                         {
-                            if (Creature* portal = ObjectAccessor::GetCreature(*me, instance->GetGuidData(NPC_TRAVEL_TO_EYE_OF_ETERNITY)))
-                            {
-                                me->SetFacingToObject(portal);
-                                me->UpdatePosition(me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), me->GetAngle(portal));
-                            }
-                        }
-                        events.ScheduleEvent(EVENT_EVENTS_UNFOLD_HAGARA_10, 2 * IN_MILLISECONDS);
-                        break;
-                    case EVENT_EVENTS_UNFOLD_HAGARA_10:
-                        DoCastAOE(SPELL_OPEN_EYE_OF_ETERNITY_PORTAL);
-                        events.ScheduleEvent(EVENT_EVENTS_UNFOLD_HAGARA_11, 1.5 * IN_MILLISECONDS);
-                        break;
-                    case EVENT_EVENTS_UNFOLD_HAGARA_11:
-                        if (InstanceScript* instance = me->GetInstanceScript())
-                            if (Creature* portal = instance->instance->GetCreature(instance->GetGuidData(NPC_TRAVEL_TO_EYE_OF_ETERNITY)))
-                                portal->SetInPhase(PHASE_DUNGEON_ALTERNATE, true, false);
-                        events.ScheduleEvent(EVENT_EVENTS_UNFOLD_HAGARA_12, 6.5 * IN_MILLISECONDS);
-                        break;
-                    case EVENT_EVENTS_UNFOLD_HAGARA_12:
-                        me->SetFacingTo(me->GetHomePosition().GetOrientation());
-                        me->UpdatePosition(me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), me->GetHomePosition().GetOrientation());
-                        break;
-                    default:
-                        break;
-                }
-            }
-        }
-
-        private:
-        EventMap events;
-    };
-
-    bool OnGossipHello(Player* player, Creature* creature) override
-    {
-        // override default gossip
-        return true;
-        // load default gossip
-        return false;
-    }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return new npc_ds_kalegos_events_unfold_hagaraAI(creature);
-    }
-};
-
-// http://www.wowhead.com/spell=108096
-class spell_ds_twilight_portal_beam : public SpellScriptLoader
-{
-public:
-    spell_ds_twilight_portal_beam() : SpellScriptLoader("spell_ds_twilight_portal_beam") {}
-
-    class spell_ds_twilight_portal_beam_SpellScript : public SpellScript
-    {
-        PrepareSpellScript(spell_ds_twilight_portal_beam_SpellScript);
-
-        void SelectPortal(WorldObject*& target)
-        {
-            target = (WorldObject*)NULL;
-            if (Creature* portal = GetCaster()->FindNearestCreature(NPC_TWILIGHT_PORTAL, 20.0f))
-                target = portal;
-        }
-
-        void Register() override
-        {
-            OnObjectTargetSelect += SpellObjectTargetSelectFn(spell_ds_twilight_portal_beam_SpellScript::SelectPortal, EFFECT_0, TARGET_UNIT_NEARBY_ENTRY);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
-    {
-        return new spell_ds_twilight_portal_beam_SpellScript();
-    }
-};
-
-// http://www.wowhead.com/spell=108242
-// http://www.wowhead.com/spell=108243
-// http://www.wowhead.com/spell=108471
-// http://www.wowhead.com/spell=108472
-// http://www.wowhead.com/spell=108473
-// http://www.wowhead.com/spell=108833
-// http://www.wowhead.com/spell=108836
-// http://www.wowhead.com/spell=108837
-// http://www.wowhead.com/spell=108838
-class spell_ds_charge_dragon_soul : public SpellScriptLoader
-{
-    public:
-        spell_ds_charge_dragon_soul() : SpellScriptLoader("spell_ds_charge_dragon_soul") {}
-
-        class spell_ds_charge_dragon_soul_SpellScript : public SpellScript
-        {
-            PrepareSpellScript(spell_ds_charge_dragon_soul_SpellScript);
-
-            void FindTarget(WorldObject*& target)
-            {
-                target = (WorldObject*)NULL;
-                switch (GetSpellInfo()->Id)
-                {
-                    case SPELL_YSERA_CHARGE_DS_GUNSHIP:
-                    case SPELL_KALECGOS_CHARGE_DS_GUNSHIP:
-                    case SPELL_ALEXSTRASZA_CHARGE_DS_GUNSHIP:
-                    case SPELL_NOZDORMU_CHARGE_DS_GUNSHIP:
-                        if (Creature* DragonSoul = GetCaster()->FindNearestCreature(NPC_DRAGON_SOUL, 200.0f))
-                            target = DragonSoul;
-                        break;
-                    default:
-                        break;
-                }
+                            DoCastAOE(SPELL_DIALOGUE_EVENTS_UNFOLD_HAGARA_7, true);
+                        });
+                    });
+                });
             }
 
-            void Register() override
-            {
-                OnObjectTargetSelect += SpellObjectTargetSelectFn(spell_ds_charge_dragon_soul_SpellScript::FindTarget, EFFECT_0, TARGET_UNIT_NEARBY_ENTRY);
-            }
+            void EnterEvadeMode(EvadeReason) override { } // No, I don't want you to trigger Reset
+
+            private:
+                TaskScheduler _scheduler;
         };
 
-        SpellScript* GetSpellScript() const override
+        CreatureAI* GetAI(Creature* creature) const override
         {
-            return new spell_ds_charge_dragon_soul_SpellScript();
+            return new npc_ds_events_unfold_thrallAI(creature);
+        }
+};
+
+// http://www.wowhead.com/npc=57943/ysera-the-awakened
+class npc_ds_events_unfold_ysera : public CreatureScript
+{
+    public:
+        npc_ds_events_unfold_ysera() : CreatureScript("npc_ds_events_unfold_ysera") {}
+
+        struct npc_ds_events_unfold_yseraAI : public ScriptedAI
+        {
+            npc_ds_events_unfold_yseraAI(Creature* creature) : ScriptedAI(creature) {}
+
+            void Reset() override
+            {
+                _scheduler.Schedule(Seconds(52), [](TaskContext context)
+                {
+                    DoCastAOE(SPELL_DIALOGUE_EVENTS_UNFOLD_HAGARA_6, true);
+                });
+            }
+
+            void EnterEvadeMode(EvadeReason) override { } // No, I don't want you to trigger Reset
+
+            private:
+                TaskScheduler _scheduler;
+        };
+
+        CreatureAI* GetAI(Creature* creature) const override
+        {
+            return new npc_ds_events_unfold_yseraAI(creature);
+        }
+};
+
+// http://www.wowhead.com/npc=57944/alexstrasza-the-life-binder
+class npc_ds_events_unfold_alexstrasza : public CreatureScript
+{
+    public:
+        npc_ds_events_unfold_alexstrasza() : CreatureScript("npc_ds_events_unfold_alexstrasza") {}
+
+        struct npc_ds_events_unfold_alexstraszaAI : public ScriptedAI
+        {
+            npc_ds_events_unfold_alexstraszaAI(Creature* creature) : ScriptedAI(creature) {}
+
+            void Reset() override
+            {
+                _scheduler.Schedule(Seconds(17), [](TaskContext)
+                {
+                    DoCastAOE(SPELL_DIALOGUE_EVENTS_UNFOLD_HAGARA_2, true);
+                });
+            }
+
+            void EnterEvadeMode(EvadeReason) override { } // No, I don't want you to trigger Reset
+
+            private:
+                TaskScheduler _scheduler;
+        };
+
+        CreatureAI* GetAI(Creature* creature) const override
+        {
+            return new npc_ds_events_unfold_alexstraszaAI(creature);
+        }
+};
+
+// http://www.wowhead.com/npc=57947/kalecgos
+class npc_ds_events_unfold_kalecgos : public CreatureScript
+{
+    public:
+        npc_ds_events_unfold_kalecgos() : CreatureScript("npc_ds_events_unfold_kalecgos") {}
+
+        struct npc_ds_events_unfold_kalecgosAI : public ScriptedAI
+        {
+            npc_ds_events_unfold_kalecgosAI(Creature* creature) : ScriptedAI(creature) { }
+
+            void Reset() override
+            {
+                _scheduler.Schedule(Seconds(21), [this](TaskContext context)
+                {
+                    DoCastAOE(SPELL_DIALOGUE_EVENTS_UNFOLD_HAGARA_3, true);
+                });
+                _scheduler.Schedule(Seconds(24), [this](TaskContext)
+                {
+                    me->HandleEmoteCommand(EMOTE_ONESHOT_TALK);
+                });
+                _scheduler.Schedule(Seconds(34), [this](TaskContext)
+                {
+                    DoCastAOE(SPELL_DIALOGUE_EVENTS_UNFOLD_HAGARA_4, true);
+                });
+                _scheduler.Schedule(Seconds(71), [this](TaskContext)
+                {
+                    DoCastAOE(SPELL_DIALOGUE_EVENTS_UNFOLD_HAGARA_8, true);
+                });
+                _scheduler.Schedule(Seconds(84), [this](TaskContext)
+                {
+                    if (InstanceScript* instance = me->GetInstanceScript())
+                    {
+                        if (Creature* portal = ObjectAccessor::GetCreature(*me, instance->GetGuidData(NPC_TRAVEL_TO_EYE_OF_ETERNITY)))
+                        {
+                            me->SetFacingToObject(portal);
+                            me->UpdatePosition(me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), me->GetAngle(portal));
+                        }
+                    }
+                });
+                _scheduler.Schedule(Seconds(86), [this](TaskContext)
+                {
+                    DoCastAOE(SPELL_OPEN_EYE_OF_ETERNITY_PORTAL);
+                });
+                _scheduler.Schedule(Milliseconds(87500), [this](TaskContext)
+                {
+                    if (InstanceScript* instance = me->GetInstanceScript())
+                        if (Creature* portal = instance->instance->GetCreature(instance->GetGuidData(NPC_TRAVEL_TO_EYE_OF_ETERNITY)))
+                            portal->SetInPhase(PHASE_DUNGEON_ALTERNATE, true, false);
+                });
+                _scheduler.Schedule(Seconds(94), [this](TaskContext context)
+                {
+                    me->SetFacingTo(me->GetHomePosition().GetOrientation());
+                    me->UpdatePosition(me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), me->GetHomePosition().GetOrientation());
+                });
+            }
+
+            void EnterEvadeMode(EvadeReason) override { } // No, I don't want you to trigger Reset
+
+        private:
+            EventMap events;
+            TaskScheduler _scheduler;
+        };
+
+        bool OnGossipHello(Player* player, Creature* creature) override
+        {
+            // override default gossip
+            return true;
+            // load default gossip
+            return false;
+        }
+
+        CreatureAI* GetAI(Creature* creature) const override
+        {
+            return new npc_ds_events_unfold_kalecgosAI(creature);
         }
 };
 
@@ -862,7 +613,7 @@ class spell_ds_twilight_flames_dummy_target : public SpellScriptLoader
     {
         PrepareSpellScript(spell_ds_twilight_flames_dummy_target_SpellScript);
 
-        bool Load()
+        bool Load() override
         {
             sharedTargets.clear();
             return true;
@@ -870,84 +621,62 @@ class spell_ds_twilight_flames_dummy_target : public SpellScriptLoader
 
         void FilterTwilightFire(std::list<WorldObject*>& targets)
         {
-            uint32 spellId = GetSpellInfo()->Id;
-
-            targets.remove_if([spellId](WorldObject* target)
+            sharedTargets = targets;
+            sharedTargets.remove_if([this](WorldObject* target)
             {
-                Creature* dummy = target->ToCreature();
-                if (dummy)
-                {
-                    if (dummy->HasAuraEffect(spellId, EFFECT_1))
-                    {
-                        std::cout << "\nreturn false";
-                        return false;
-                    }
-
-                    if (dummy->GetEntry() == NPC_TWILIGHT_ASSAULT_FIRE && dummy->IsAIEnabled)
-                    {
-                        uint32 id = dummy->AI()->GetData(DATA_TWILIGHT_FLAMES);
-                        switch (id)
-                        {
-                            case DATA_TWILIGHT_FLAMES_GROUP_1:
-                                return spellId != SPELL_TWILIGHT_FLAMES_GROUP_1;
-                            case DATA_TWILIGHT_FLAMES_GROUP_2:
-                                return spellId != SPELL_TWILIGHT_FLAMES_GROUP_2;
-                            case DATA_TWILIGHT_FLAMES_GROUP_3:
-                                return spellId != SPELL_TWILIGHT_FLAMES_GROUP_3;
-                            case DATA_TWILIGHT_FLAMES_GROUP_4:
-                                return spellId != SPELL_TWILIGHT_FLAMES_GROUP_4;
-                            case DATA_TWILIGHT_FLAMES_GROUP_5:
-                                return spellId != SPELL_TWILIGHT_FLAMES_GROUP_5;
-                            case DATA_TWILIGHT_FLAMES_GROUP_6:
-                                return spellId != SPELL_TWILIGHT_FLAMES_GROUP_6;
-                            case DATA_TWILIGHT_FLAMES_GROUP_7:
-                                return spellId != SPELL_TWILIGHT_FLAMES_GROUP_7;
-                            case DATA_TWILIGHT_FLAMES_GROUP_8:
-                                return spellId != SPELL_TWILIGHT_FLAMES_GROUP_8;
-                            case DATA_TWILIGHT_FLAMES_GROUP_9:
-                                return spellId != SPELL_TWILIGHT_FLAMES_GROUP_9;
-                            case DATA_TWILIGHT_FLAMES_GROUP_10:
-                                return spellId != SPELL_TWILIGHT_FLAMES_GROUP_10;
-                            case DATA_TWILIGHT_FLAMES_GROUP_11:
-                                return spellId != SPELL_TWILIGHT_FLAMES_GROUP_11;
-                            case DATA_TWILIGHT_FLAMES_GROUP_12:
-                                return spellId != SPELL_TWILIGHT_FLAMES_GROUP_12;
-                        }
-                    }
-                }
-
-                return true;
+                return !(target->ToUnit() && target->ToUnit()->HasAuraEffect(m_scriptSpellId, EFFECT_1));
             });
 
-            for (auto target : targets)
-                if (Unit* unitTarget = target->ToUnit())
-                    if (unitTarget->HasAuraEffect(spellId, EFFECT_1))
-                        sharedTargets.push_back(target);
+            targets.remove_if([this](WorldObject* target)
+            {
+                Creature* dummy = target->ToCreature();
+                if (!dummy)
+                    return true;
 
-            for (auto target : sharedTargets)
-                targets.remove(target);
+                if (dummy->GetEntry() == NPC_TWILIGHT_ASSAULT_FIRE && dummy->IsAIEnabled)
+                {
+                    uint32 id = dummy->AI()->GetData(DATA_TWILIGHT_FLAMES);
+                    switch (id)
+                    {
+                        case DATA_TWILIGHT_FLAMES_GROUP_1:
+                        case DATA_TWILIGHT_FLAMES_GROUP_2:
+                        case DATA_TWILIGHT_FLAMES_GROUP_3:
+                        case DATA_TWILIGHT_FLAMES_GROUP_4:
+                        case DATA_TWILIGHT_FLAMES_GROUP_5:
+                        case DATA_TWILIGHT_FLAMES_GROUP_6:
+                        case DATA_TWILIGHT_FLAMES_GROUP_7:
+                        case DATA_TWILIGHT_FLAMES_GROUP_8:
+                        case DATA_TWILIGHT_FLAMES_GROUP_9:
+                        case DATA_TWILIGHT_FLAMES_GROUP_10:
+                        case DATA_TWILIGHT_FLAMES_GROUP_11:
+                        case DATA_TWILIGHT_FLAMES_GROUP_12:
+                            return m_scriptSpellId != TwilightFlamesMapping[id];
+                        default:
+                            return true;
+                    }
+
+                    return true;
+                }
+            });
 
             targets.sort(Trinity::ObjectDistanceOrderPred(GetCaster()));
-            if (!targets.empty())
-                sharedTargets.push_back(targets.front());
+            if (WorldObject* target = targets.front())
+                sharedTargets.push_back(target);
 
             targets = sharedTargets;
-            for (auto target : targets)
-                std::cout << "\nTARGET: " << target->GetName() << ", guid: " << target->GetGUIDLow();
         }
 
-        /*void FilterList(std::list<WorldObject*>& targets)
+        void CopyTargets(std::list<WorldObject*>& targets)
         {
             targets = sharedTargets;
-        }*/
+        }
 
         void Register() override
         {
             OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_ds_twilight_flames_dummy_target_SpellScript::FilterTwilightFire, EFFECT_0, TARGET_UNIT_SRC_AREA_ENTRY);
-            OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_ds_twilight_flames_dummy_target_SpellScript::FilterTwilightFire, EFFECT_1, TARGET_UNIT_SRC_AREA_ENTRY);
+            OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_ds_twilight_flames_dummy_target_SpellScript::CopyTargets, EFFECT_1, TARGET_UNIT_SRC_AREA_ENTRY);
         }
 
-        private:
         std::list<WorldObject*> sharedTargets;
     };
 
@@ -1056,6 +785,67 @@ class spell_ds_open_eye_of_eternity_portal : public SpellScriptLoader
     }
 };
 
+// http://www.wowhead.com/spell=109502/events-unfold
+// http://www.wowhead.com/spell=109498/events-unfold
+// http://www.wowhead.com/spell=109500/events-unfold
+// http://www.wowhead.com/spell=109499/events-unfold
+// http://www.wowhead.com/spell=109501/events-unfold
+class spell_ds_events_unfold_summon_actor_one : public SpellScriptLoader
+{
+    public:
+        spell_ds_events_unfold_summon_actor_one() : SpellScriptLoader("spell_ds_events_unfold_summon_actor_one") { }
+
+        class spell_ds_events_unfold_summon_actor_one_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_ds_events_unfold_summon_actor_one_SpellScript);
+
+            void SelectActor(WorldObject*& target)
+            {
+                target = nullptr;
+                uint32 actorEntry = NULL;
+                switch (m_scriptSpellId)
+                {
+                    case SPELL_EVENTS_UNFOLD_HAGARA_SUMMON_YSERA:
+                        actorEntry = NPC_YSERA_WYRMREST_TEMPLE;
+                        break;
+                    case SPELL_EVENTS_UNFOLD_HAGARA_SUMMON_NOZDORMU:
+                        actorEntry = NPC_NOZDORMU_WYRMREST_TEMPLE;
+                        break;
+                    case SPELL_EVENTS_UNFOLD_HAGARA_SUMMON_THRALL:
+                        actorEntry = NPC_THRALL_WYRMREST_TEMPLE;
+                        break;
+                    case SPELL_EVENTS_UNFOLD_HAGARA_SUMMON_KALECGOS:
+                        actorEntry = NPC_KALECGOS_WYRMREST_TEMPLE;
+                        break;
+                    case SPELL_EVENTS_UNFOLD_HAGARA_SUMMON_ALEXSTRASZA:
+                        actorEntry = NPC_ALEXSTRASZA_WYRMREST_TEMPLE;
+                        break;
+                    default:
+                        break;
+                }
+
+
+                if (InstanceScript* instance = GetCaster()->GetInstanceScript())
+                    if (Creature* actor = instance->GetCreature(actorEntry))
+                        target = actor;
+
+                if (!target)
+                    FinishCast(SPELL_FAILED_DONT_REPORT);
+            }
+
+            void Register() override
+            {
+                OnObjectTargetSelect += SpellObjectTargetSelectFn(spell_ds_events_unfold_summon_actor_one_SpellScript::SelectActor, EFFECT_0, TARGET_DEST_NEARBY_ENTRY);
+            }
+        };
+
+        SpellScript* GetSpellScript() const override
+        {
+            return new spell_ds_events_unfold_summon_actor_one_SpellScript();
+        }
+};
+
+
 class go_ds_the_focusing_iris : public GameObjectScript
 {
     public:
@@ -1078,9 +868,9 @@ class at_ds_wyrmrest_summit : public AreaTriggerScript
     public:
     at_ds_wyrmrest_summit() : AreaTriggerScript("at_ds_wyrmrest_summit") {}
 
-    bool OnTrigger(Player* player, AreaTriggerEntry const* /*at*/) override
+    bool OnTrigger(Player* player, AreaTriggerEntry const* /*at*/, bool entered) override
     {
-        if (player->IsGameMaster())
+        if (!entered || player->IsGameMaster())
             return true;
 
         InstanceScript* instance = player->GetInstanceScript();
@@ -1095,10 +885,10 @@ class at_ds_wyrmrest_summit : public AreaTriggerScript
 
 void AddSC_dragon_soul()
 {
-    new npc_ds_alexstrasza_56630();
-    new npc_ds_kalecgos_56664();
-    new npc_ds_ysera_56665();
-    new npc_ds_nozdormu_56666();
+    new npc_ds_alexstrasza_part_one();
+    new npc_ds_kalecgos_part_one();
+    new npc_ds_ysera_part_one();
+    new npc_ds_nozdormu_part_one();
 
     new npc_ds_alexstrasza_events_unfold_hagara();
     new npc_ds_kalegos_events_unfold_hagara();
