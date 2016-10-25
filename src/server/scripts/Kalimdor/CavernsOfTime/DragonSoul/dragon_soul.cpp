@@ -1,12 +1,13 @@
 #include "ScriptMgr.h"
 #include "dragon_soul.h"
-#include "ScriptedEscortAI.h"
-#include "SpellAuras.h"
 #include "SpellScript.h"
 #include "ScriptedCreature.h"
 #include "SharedDefines.h"
 #include "Player.h"
 #include "ScriptedGossip.h"
+#include "GridNotifiers.h"
+#include "PassiveAI.h"
+#include "Spell.h"
 
 /*
     Events Unfold - Hagara
@@ -117,9 +118,52 @@ uint32 const TwilightFlamesMapping[12] =
     { SPELL_TWILIGHT_FLAMES_GROUP_12 },
 };
 
+enum DragonSoulData123
+{
+    GOSSIP_MENU_KALECGOS_EVENTS_UNFOLD              = 13373,
+    GOSSIP_OPTION_KALECGOS_EVENTS_UNFOLD_CONFIRM    = 0,
+    GOSSIP_MENU_THRALL_ULTRAXION                    = 13322,
+};
+
 std::map<uint32, uint8> EventsUnfoldIndexMap = 
 {
     {}
+};
+
+struct dragon_soul_track_instance_progressAI : public ScriptedAI
+{
+    dragon_soul_track_instance_progressAI(Creature* creature) : ScriptedAI(creature), _instanceProgress() { }
+
+    void Reset() override
+    {
+        ScriptedAI::Reset();
+        if (InstanceScript* instance = me->GetInstanceScript())
+            _instanceProgress = static_cast<DragonSoulEventProgress>(instance->GetData(DATA_INSTANCE_PROGRESS));
+    }
+
+    void SetData(uint32 type, uint32 data) override
+    {
+        ScriptedAI::SetData(type, data);
+        switch (type)
+        {
+            case DATA_INSTANCE_PROGRESS:
+                _instanceProgress = static_cast<DragonSoulEventProgress>(data);
+                OnInstanceProgressUpdate(_instanceProgress);
+                break;
+            default:
+                break;
+        }
+    }
+
+    virtual void OnInstanceProgressUpdate(DragonSoulEventProgress /*instanceProgress*/) { }
+
+    DragonSoulEventProgress GetInstanceProgress() const
+    {
+        return _instanceProgress;
+    }
+
+private:
+    DragonSoulEventProgress _instanceProgress;
 };
 
 // http://www.wowhead.com/npc=56630
@@ -128,23 +172,35 @@ class npc_ds_alexstrasza_part_one : public CreatureScript
     public:
         npc_ds_alexstrasza_part_one() : CreatureScript("npc_ds_alexstrasza_part_one") {}
 
-        struct npc_ds_alexstrasza_part_oneAI : public ScriptedAI
+        struct npc_ds_alexstrasza_part_oneAI : public dragon_soul_track_instance_progressAI
         {
-            npc_ds_alexstrasza_part_oneAI(Creature* creature) : ScriptedAI(creature) { }
+            npc_ds_alexstrasza_part_oneAI(Creature* creature) : dragon_soul_track_instance_progressAI(creature) { }
 
             void EnterEvadeMode(EvadeReason) override
             {
+                uint32 timeToDespawn;
+                switch (GetInstanceProgress())
+                {
+                    case EVENT_PROGRESS_ULTRAXION_TRASH:
+                        timeToDespawn = 3;
+                        break;
+                    case EVENT_PROGRESS_ULTRAXION:
+                    default:
+                        timeToDespawn = 30;
+                        break;
+                }
+
                 _scheduler.CancelAll();
 
                 uint32 corpseDelay = me->GetCorpseDelay();
                 uint32 respawnDelay = me->GetRespawnDelay();
                 me->SetCorpseDelay(1);
-                me->SetRespawnDelay(29);
+                me->SetRespawnDelay(timeToDespawn - 1);
                 me->DespawnOrUnsummon();
                 me->SetCorpseDelay(corpseDelay);
                 me->SetRespawnDelay(respawnDelay);
 
-                Position home = me->GetHomePosition();
+                auto home = me->GetHomePosition();
                 me->NearTeleportTo(home.GetPositionX(), home.GetPositionY(), home.GetPositionZ(), home.GetOrientation());
             }
 
@@ -176,34 +232,70 @@ class npc_ds_alexstrasza_part_one : public CreatureScript
         }
 };
 
+struct wyrmrest_summit_aspectAI : public dragon_soul_track_instance_progressAI
+{
+    wyrmrest_summit_aspectAI(Creature* creature) : dragon_soul_track_instance_progressAI(creature) { }
+
+    void EnterEvadeMode(EvadeReason reason) override
+    {
+        dragon_soul_track_instance_progressAI::EnterEvadeMode(reason);
+
+        _scheduler.CancelAll();
+
+        uint32 timeToDespawn;
+        switch (GetInstanceProgress())
+        {
+            case EVENT_PROGRESS_ULTRAXION_TRASH:
+                timeToDespawn = 3;
+                break;
+            case EVENT_PROGRESS_ULTRAXION:
+            default:
+                timeToDespawn = 30;
+                break;
+        }
+
+        uint32 corpseDelay = me->GetCorpseDelay();
+        uint32 respawnDelay = me->GetRespawnDelay();
+        me->SetCorpseDelay(1);
+        me->SetRespawnDelay(timeToDespawn - 1);
+        me->DespawnOrUnsummon();
+        me->SetCorpseDelay(corpseDelay);
+        me->SetRespawnDelay(respawnDelay);
+
+        auto home = me->GetHomePosition();
+        me->NearTeleportTo(home.GetPositionX(), home.GetPositionY(), home.GetPositionZ(), home.GetOrientation());
+    }
+
+    void OnInstanceProgressUpdate(DragonSoulEventProgress progress) override
+    {
+        switch (progress)
+        {
+            case EVENT_PROGRESS_HAGARA_END:
+                me->SetVisible(true);
+                break;
+            default:
+                break;
+        }
+    }
+
+private:
+    TaskScheduler _scheduler;
+};
+
 // http://www.wowhead.com/npc=56664
 class npc_ds_kalecgos_part_one : public CreatureScript
 {
     public:
         npc_ds_kalecgos_part_one() : CreatureScript("npc_ds_kalecgos_part_one") {}
 
-        struct npc_ds_kalecgos_part_oneAI : public ScriptedAI
+        struct npc_ds_kalecgos_part_oneAI : public wyrmrest_summit_aspectAI
         {
-            npc_ds_kalecgos_part_oneAI(Creature* creature) : ScriptedAI(creature) { }
-
-            void EnterEvadeMode(EvadeReason) override
-            {
-                _scheduler.CancelAll();
-
-                uint32 corpseDelay = me->GetCorpseDelay();
-                uint32 respawnDelay = me->GetRespawnDelay();
-                me->SetCorpseDelay(1);
-                me->SetRespawnDelay(29);
-                me->DespawnOrUnsummon();
-                me->SetCorpseDelay(corpseDelay);
-                me->SetRespawnDelay(respawnDelay);
-
-                Position home = me->GetHomePosition();
-                me->NearTeleportTo(home.GetPositionX(), home.GetPositionY(), home.GetPositionZ(), home.GetOrientation());
-            }
+            npc_ds_kalecgos_part_oneAI(Creature* creature) : wyrmrest_summit_aspectAI(creature) { }
 
             void Reset() override
             {
+                wyrmrest_summit_aspectAI::Reset();
+
                 switch (me->GetAreaId())
                 {
                     case AREA_ABOVE_THE_FROZEN_SEA:
@@ -215,9 +307,32 @@ class npc_ds_kalecgos_part_one : public CreatureScript
                             context.Repeat();
                         });
                         break;
+                    case AREA_WYRMREST_SUMMIT:
+                        switch (GetInstanceProgress())
+                        {
+                            case EVENT_PROGRESS_HAGARA_END:
+                                me->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
+                                break;
+                            case EVENT_PROGRESS_ULTRAXION_TRASH:
+                                break;
+                            case EVENT_PROGRESS_ULTRAXION:
+                                break;
+                            case EVENT_PROGRESS_ULTRAXION_END:
+                                break;
+                            default:
+                                me->SetVisible(false);
+                                break;
+                        }
+                        break;
                     default:
                         break;
                 }
+            }
+
+            void EnterEvadeMode(EvadeReason reason) override
+            {
+                wyrmrest_summit_aspectAI::EnterEvadeMode(reason);
+                me->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
             }
 
         private:
@@ -233,35 +348,10 @@ class npc_ds_kalecgos_part_one : public CreatureScript
             switch (creature->GetAreaId())
             {
                 case AREA_THE_DRAGON_WASTES_1:
-                    switch (player->GetTeam())
-                    {
-                        case ALLIANCE:
-                            player->ADD_GOSSIP_ITEM_DB(GOSSIP_SKYFIRE_DRAGONBLIGHT, GOSSIP_OPTION_ALLIANCE, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
-                            break;
-                        case HORDE:
-                            player->ADD_GOSSIP_ITEM_DB(GOSSIP_SKYFIRE_DRAGONBLIGHT, GOSSIP_OPTION_HORDE, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
-                            break;
-                        default:
-                            break;
-                    }
-                    player->SEND_GOSSIP_MENU(player->GetGossipTextId(GOSSIP_SKYFIRE_DRAGONBLIGHT, creature), creature->GetGUID());
+                    player->ADD_GOSSIP_ITEM_DB(GOSSIP_MENU_KALECGOS_EVENTS_UNFOLD, GOSSIP_OPTION_KALECGOS_EVENTS_UNFOLD_CONFIRM, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+                    player->SEND_GOSSIP_MENU(player->GetGossipTextId(GOSSIP_MENU_KALECGOS_EVENTS_UNFOLD, creature), creature->GetGUID());
                     break;
-                case AREA_ABOVE_THE_FROZEN_SEA:
-                    uint32 state = instance->GetBossState(DATA_WARMASTER_BLACKHORN);
-                    switch (state)
-                    {
-                        case NOT_STARTED:
-                            player->ADD_GOSSIP_ITEM_DB(GOSSIP_WARMASTER_BLACKHORN, 0, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
-                            player->SEND_GOSSIP_MENU(player->GetGossipTextId(GOSSIP_WARMASTER_BLACKHORN, creature), creature->GetGUID());
-                            break;
-                        case DONE:
-                            if (instance->GetBossState(DATA_SPINE_OF_DEATHWING) == NOT_STARTED)
-                                player->ADD_GOSSIP_ITEM_DB(GOSSIP_SPINE_OF_DEATHWING, 0, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 3);
-                            player->SEND_GOSSIP_MENU(player->GetGossipTextId(GOSSIP_WARMASTER_BLACKHORN, creature), creature->GetGUID());
-                            break;
-                        default:
-                            break;
-                    }
+                default:
                     break;
             }
 
@@ -283,19 +373,20 @@ class npc_ds_kalecgos_part_one : public CreatureScript
             {
                 case GOSSIP_ACTION_INFO_DEF + 1:
                     creature->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
-                    creature->CastSpell(player, SPELL_TELEPORT_ALL_TO_GUNSHIP, true);
+
+                    //creature->CastSpell(player, SPELL_TELEPORT_ALL_TO_GUNSHIP, true);
                     if (GameObject* skyfire = ObjectAccessor::GetGameObject(*creature, instance->GetGuidData(GO_ALLIANCE_SHIP_1)))
                         break;
                 case GOSSIP_ACTION_INFO_DEF + 2:
                     creature->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
-                    creature->SummonCreature(NPC_GORIONA, GorionaSpawnPos, TEMPSUMMON_MANUAL_DESPAWN);
+                    //creature->SummonCreature(NPC_GORIONA, GorionaSpawnPos, TEMPSUMMON_MANUAL_DESPAWN);
                     break;
                 case GOSSIP_ACTION_INFO_DEF + 3:
                     if (instance->GetBossState(DATA_SPINE_OF_DEATHWING) != NOT_STARTED)
                         break;
 
                     creature->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
-                    creature->AI()->DoCastAOE(SPELL_PLAY_SPINE_OF_DEATHWING_CINEMATIC, true);
+                    //creature->AI()->DoCastAOE(SPELL_PLAY_SPINE_OF_DEATHWING_CINEMATIC, true);
                     break;
                 default:
                     break;
@@ -512,7 +603,7 @@ class npc_ds_events_unfold_thrall : public CreatureScript
         
             void Reset() override
             {
-                _scheduler.Schedule(Seconds(3), [](TaskContext context)         // After 3 seconds
+                _scheduler.Schedule(Seconds(3), [this](TaskContext context)         // After 3 seconds
                 {
                     DoCastAOE(SPELL_DIALOGUE_EVENTS_UNFOLD_HAGARA_1, true);
                     context.Schedule(Seconds(8), [this](TaskContext context)    // After 3 + 8 seconds
@@ -554,7 +645,7 @@ class npc_ds_events_unfold_ysera : public CreatureScript
 
             void Reset() override
             {
-                _scheduler.Schedule(Seconds(52), [](TaskContext context)
+                _scheduler.Schedule(Seconds(52), [this](TaskContext context)
                 {
                     DoCastAOE(SPELL_DIALOGUE_EVENTS_UNFOLD_HAGARA_6, true);
                 });
@@ -584,7 +675,7 @@ class npc_ds_events_unfold_alexstrasza : public CreatureScript
 
             void Reset() override
             {
-                _scheduler.Schedule(Seconds(17), [](TaskContext)
+                _scheduler.Schedule(Seconds(17), [this](TaskContext)
                 {
                     DoCastAOE(SPELL_DIALOGUE_EVENTS_UNFOLD_HAGARA_2, true);
                 });
@@ -614,7 +705,6 @@ class npc_ds_events_unfold_kalecgos : public CreatureScript
 
             void Reset() override
             {
-                me->Talk()
                 _scheduler.Schedule(Seconds(21), [this](TaskContext context)
                 {
                     DoCastAOE(SPELL_DIALOGUE_EVENTS_UNFOLD_HAGARA_3, true);
@@ -978,16 +1068,16 @@ void AddSC_dragon_soul()
     new npc_ds_ysera_part_one();
     new npc_ds_nozdormu_part_one();
 
-    new npc_ds_alexstrasza_events_unfold_hagara();
-    new npc_ds_kalegos_events_unfold_hagara();
-    new npc_ds_ysera_events_unfold_hagara();
-    new npc_ds_thrall_events_unfold_hagara();
+    //new npc_ds_alexstrasza_events_unfold_hagara();
+    //new npc_ds_kalegos_events_unfold_hagara();
+    //new npc_ds_ysera_events_unfold_hagara();
+    //new npc_ds_thrall_events_unfold_hagara();
 
     new npc_ultraxion_gauntlet();
     new npc_twilight_assaulter_flames();
 
-    new spell_ds_twilight_portal_beam();
-    new spell_ds_charge_dragon_soul();
+    //new spell_ds_twilight_portal_beam();
+    //new spell_ds_charge_dragon_soul();
     new spell_ds_twilight_flames_dummy_target();
     new spell_ds_events_unfold_hagara_summon();
     new spell_ds_open_eye_of_eternity_portal();

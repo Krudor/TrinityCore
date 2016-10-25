@@ -29,6 +29,7 @@
 #include "PassiveAI.h"
 #include "SpellAuras.h"
 #include "SpellScript.h"
+#include "Spell.h"
 
 enum Spells
 {
@@ -1682,8 +1683,6 @@ class spell_spine_of_deathwing_nuclear_blast_script_effect : public SpellScriptL
                         if (caster->IsAIEnabled)
                             caster->AI()->Talk(EMOTE_AMALG_NUCLEAR_BLAST_FAIL);
             }
-
-            void
 
             void Register() override
             {
