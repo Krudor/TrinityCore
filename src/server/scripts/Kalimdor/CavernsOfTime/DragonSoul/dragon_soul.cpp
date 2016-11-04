@@ -8,6 +8,7 @@
 #include "GridNotifiers.h"
 #include "PassiveAI.h"
 #include "Spell.h"
+#include <CreatureGroups.h>
 
 /*
     Events Unfold - Hagara
@@ -164,6 +165,112 @@ struct dragon_soul_track_instance_progressAI : public ScriptedAI
 
 private:
     DragonSoulEventProgress _instanceProgress;
+};
+
+struct dragon_soul_wyrmrest_defenderAI : public dragon_soul_track_instance_progressAI
+{
+    dragon_soul_wyrmrest_defenderAI(Creature* creature) : dragon_soul_track_instance_progressAI(creature) { }
+
+    void Reset() override
+    {
+        dragon_soul_track_instance_progressAI::Reset();
+        SetInFormationWith(FindNearestCaptain(), 3);
+    }
+        /*
+            0
+                If any creature from group is attacked, members won't assist
+            1
+                Group member will assist only their leader if attacked.
+            2
+                Group members will assist all group members
+        */
+    void SetInFormationWith(Creature* captain, uint8 groupAI) const
+    {
+        if (!captain)
+            return;
+
+        CreatureGroup* group = captain->GetFormation();
+        if (group)
+        {
+            if (group->m_members[me])
+                return;
+        }
+        else if (!group)
+        {
+            group = new CreatureGroup(captain->GetSpawnId());
+            group->m_leader = captain;
+        }
+        FormationInfo* formationInfo = new FormationInfo();
+        formationInfo->follow_angle = (me->GetAngle(captain) * 180) / M_PI;
+        formationInfo->follow_dist = captain->GetDistance2d(me);
+        formationInfo->groupAI = groupAI;
+        group->m_members[me] = formationInfo;
+        me->SetFormation(group);
+        me->Say("I will follow " + captain->GetName(), LANG_UNIVERSAL);
+    }
+
+    Creature* FindNearestCaptain() const
+    {
+        Creature* captain = me->FindNearestCreature(NPC_TWILIGHT_CAPTAIN, 30.0f);
+        if (!captain)
+            captain = me->FindNearestCreature(NPC_LORD_AFRASASTRASZ, 30.0f);
+
+        return captain;
+    }
+};
+
+// http://www.wowhead.com/npc=57348
+class npc_ds_wyrmrest_defender : public CreatureScript
+{
+    public:
+        npc_ds_wyrmrest_defender() : CreatureScript("npc_ds_wyrmrest_defender") {}
+
+        struct npc_ds_wyrmrest_defenderAI : public dragon_soul_wyrmrest_defenderAI
+        {
+            npc_ds_wyrmrest_defenderAI(Creature* creature) : dragon_soul_wyrmrest_defenderAI(creature) { }
+
+        };
+
+        CreatureAI* GetAI(Creature* creature) const override
+        {
+            return new npc_ds_wyrmrest_defenderAI(creature);
+        }
+};
+
+// http://www.wowhead.com/npc=57348
+class npc_ds_crimson_lifebinder : public CreatureScript
+{
+    public:
+        npc_ds_crimson_lifebinder() : CreatureScript("npc_ds_crimson_lifebinder") {}
+
+        struct npc_ds_crimson_lifebinderAI : public dragon_soul_wyrmrest_defenderAI
+        {
+            npc_ds_crimson_lifebinderAI(Creature* creature) : dragon_soul_wyrmrest_defenderAI(creature) { }
+
+        };
+
+        CreatureAI* GetAI(Creature* creature) const override
+        {
+            return new npc_ds_crimson_lifebinderAI(creature);
+        }
+};
+
+// http://www.wowhead.com/npc=57348
+class npc_ds_wyrmrest_protector : public CreatureScript
+{
+    public:
+        npc_ds_wyrmrest_protector() : CreatureScript("npc_ds_wyrmrest_protector") {}
+
+        struct npc_ds_wyrmrest_protectorAI : public dragon_soul_wyrmrest_defenderAI
+        {
+            npc_ds_wyrmrest_protectorAI(Creature* creature) : dragon_soul_wyrmrest_defenderAI(creature) { }
+
+        };
+
+        CreatureAI* GetAI(Creature* creature) const override
+        {
+            return new npc_ds_wyrmrest_protectorAI(creature);
+        }
 };
 
 // http://www.wowhead.com/npc=56630
@@ -1063,6 +1170,10 @@ class at_ds_wyrmrest_summit : public AreaTriggerScript
 
 void AddSC_dragon_soul()
 {
+    new npc_ds_wyrmrest_defender();
+    new npc_ds_crimson_lifebinder();
+    new npc_ds_wyrmrest_protector();
+
     new npc_ds_alexstrasza_part_one();
     new npc_ds_kalecgos_part_one();
     new npc_ds_ysera_part_one();

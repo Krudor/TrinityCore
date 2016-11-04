@@ -56,10 +56,6 @@ class TC_GAME_API FormationMgr
 class TC_GAME_API CreatureGroup
 {
     private:
-        Creature* m_leader; //Important do not forget sometimes to work with pointers instead synonims :D:D
-        typedef std::map<Creature*, FormationInfo*>  CreatureGroupMemberType;
-        CreatureGroupMemberType m_members;
-
         ObjectGuid::LowType m_groupID;
         bool m_Formed;
 
@@ -79,6 +75,10 @@ class TC_GAME_API CreatureGroup
 
         void LeaderMoveTo(float x, float y, float z);
         void MemberAttackStart(Creature* member, Unit* target);
+
+        Creature* m_leader;
+        typedef std::map<Creature*, FormationInfo*>  CreatureGroupMemberType;
+        CreatureGroupMemberType m_members;
 };
 
 #define sFormationMgr FormationMgr::instance()
