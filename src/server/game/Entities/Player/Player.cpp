@@ -5086,7 +5086,7 @@ void Player::UpdateRating(CombatRating cr)
             break;
         case CR_CRIT_SPELL:
             if (affectStats)
-                UpdateAllSpellCritChances();
+                UpdateSpellCritChance();
             break;
         case CR_MULTISTRIKE:
         case CR_READINESS:
@@ -7533,6 +7533,9 @@ void Player::ApplyItemEquipSpell(Item* item, bool apply, bool formChange /*= fal
         if (spellproto->HasAura(GetMap()->GetDifficultyID(), SPELL_AURA_MOD_XP_PCT)
             && !GetSession()->GetCollectionMgr()->CanApplyHeirloomXpBonus(item->GetEntry(), getLevel())
             && sDB2Manager.GetHeirloomByItemId(item->GetEntry()))
+            continue;
+
+        if (effectData->ChrSpecializationID && effectData->ChrSpecializationID != GetUInt32Value(PLAYER_FIELD_CURRENT_SPEC_ID))
             continue;
 
         ApplyEquipSpell(spellproto, item, apply, formChange);
@@ -26507,6 +26510,7 @@ void Player::SendMovementSetCollisionHeight(float height)
     setCollisionHeight.Height = height;
     setCollisionHeight.Scale = GetObjectScale();
     setCollisionHeight.MountDisplayID = GetUInt32Value(UNIT_FIELD_MOUNTDISPLAYID);
+    setCollisionHeight.ScaleDuration = GetUInt32Value(UNIT_FIELD_SCALE_DURATION);
     setCollisionHeight.Reason = WorldPackets::Movement::UPDATE_COLLISION_HEIGHT_MOUNT;
     SendDirectMessage(setCollisionHeight.Write());
 
