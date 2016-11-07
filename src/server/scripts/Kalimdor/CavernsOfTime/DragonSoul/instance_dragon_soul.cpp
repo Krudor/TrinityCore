@@ -587,6 +587,9 @@ public:
 
             switch (creature->GetEntry())
             {
+                case NPC_ANDORGOS:
+                    creature->AIM_Initialize(new npc_ds_andorgosAI(creature));
+                    break;
                 case NPC_LORD_AFRASASTRASZ:
                     _lordAfrasastraszGUIDs[_dragonSoulEventProgress] = creature->GetGUID();
                     break;

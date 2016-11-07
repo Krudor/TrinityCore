@@ -19,6 +19,7 @@
 #define DRAGON_SOUL_H
 
 #include "Position.h"
+#include "PassiveAI.h"
 
 #define DSScriptName "instance_dragon_soul"
 #define ULTRAXION_TRASH_REQ_KILLS 15
@@ -462,6 +463,16 @@ public:
 private:
     Creature* _source;
     uint8 _id;
+};
+
+struct npc_ds_andorgosAI : public PassiveAI
+{
+    npc_ds_andorgosAI(Creature* creature) : PassiveAI(creature) { }
+
+    void Reset() override
+    {
+        DoCast(23017);
+    }
 };
 
 class DelayedSplineEvent : public BasicEvent
