@@ -25,6 +25,7 @@
 #include "GridNotifiersImpl.h"
 #include "Group.h"
 #include "GroupMgr.h"
+#include "ArtifactPackets.h"
 #include "MiscPackets.h"
 #include "ObjectMgr.h"
 #include "OutdoorPvPMgr.h"
@@ -54,6 +55,7 @@ GameObject::GameObject() : WorldObject(false), MapObject(),
     m_cooldownTime = 0;
     m_goInfo = NULL;
     m_goData = NULL;
+    m_goTemplateAddon = nullptr;
 
     m_spawnId = UI64LIT(0);
     m_rotation = 0;
@@ -222,6 +224,7 @@ bool GameObject::Create(uint32 name_id, Map* map, uint32 /*phaseMask*/, float x,
     Object::_Create(guid);
 
     m_goInfo = goinfo;
+    m_goTemplateAddon = sObjectMgr->GetGameObjectTemplateAddon(name_id);
 
     if (goinfo->type >= MAX_GAMEOBJECT_TYPE)
     {
@@ -236,8 +239,11 @@ bool GameObject::Create(uint32 name_id, Map* map, uint32 /*phaseMask*/, float x,
 
     SetObjectScale(goinfo->size);
 
-    SetUInt32Value(GAMEOBJECT_FACTION, goinfo->faction);
-    SetUInt32Value(GAMEOBJECT_FLAGS, goinfo->flags);
+    if (m_goTemplateAddon)
+    {
+        SetUInt32Value(GAMEOBJECT_FACTION, m_goTemplateAddon->faction);
+        SetUInt32Value(GAMEOBJECT_FLAGS, m_goTemplateAddon->flags);
+    }
 
     SetEntry(goinfo->entry);
 
@@ -670,8 +676,9 @@ void GameObject::Update(uint32 diff)
                 SetGoState(GO_STATE_READY);
 
                 //any return here in case battleground traps
-                if (GetGOInfo()->flags & GO_FLAG_NODESPAWN)
-                    return;
+                if (GameObjectTemplateAddon const* addon = GetTemplateAddon())
+                    if (addon->flags & GO_FLAG_NODESPAWN)
+                        return;
             }
 
             loot.clear();
@@ -690,9 +697,10 @@ void GameObject::Update(uint32 diff)
             //burning flags in some battlegrounds, if you find better condition, just add it
             if (GetGOInfo()->IsDespawnAtAction() || GetGoAnimProgress() > 0)
             {
-                SendObjectDeSpawnAnim(GetGUID());
+                SendGameObjectDespawn();
                 //reset flags
-                SetUInt32Value(GAMEOBJECT_FLAGS, GetGOInfo()->flags);
+                if (GameObjectTemplateAddon const* addon = GetTemplateAddon())
+                    SetUInt32Value(GAMEOBJECT_FLAGS, addon->flags);
             }
 
             if (!m_respawnDelayTime)
@@ -740,16 +748,25 @@ void GameObject::Delete()
     SetLootState(GO_NOT_READY);
     RemoveFromOwner();
 
-    SendObjectDeSpawnAnim(GetGUID());
+    SendGameObjectDespawn();
 
     SetGoState(GO_STATE_READY);
-    SetUInt32Value(GAMEOBJECT_FLAGS, GetGOInfo()->flags);
+
+    if (GameObjectTemplateAddon const* addon = GetTemplateAddon())
+        SetUInt32Value(GAMEOBJECT_FLAGS, addon->flags);
 
     uint32 poolid = GetSpawnId() ? sPoolMgr->IsPartOfAPool<GameObject>(GetSpawnId()) : 0;
     if (poolid)
         sPoolMgr->UpdatePool<GameObject>(poolid, GetSpawnId());
     else
         AddObjectToRemoveList();
+}
+
+void GameObject::SendGameObjectDespawn()
+{
+    WorldPackets::GameObject::GameObjectDespawn packet;
+    packet.ObjectGUID = GetGUID();
+    SendMessageToSet(packet.Write(), true);
 }
 
 void GameObject::getFishLoot(Loot* fishloot, Player* loot_owner)
@@ -1035,6 +1052,9 @@ bool GameObject::IsNeverVisible() const
         return true;
 
     if (GetGoType() == GAMEOBJECT_TYPE_SPELL_FOCUS && GetGOInfo()->spellFocus.serverOnly == 1)
+        return true;
+
+    if (!GetUInt32Value(GAMEOBJECT_DISPLAYID))
         return true;
 
     return false;
@@ -1813,6 +1833,34 @@ void GameObject::Use(Unit* user)
             player->SetStandState(UnitStandStateType(UNIT_STAND_STATE_SIT_LOW_CHAIR + info->barberChair.chairheight), info->barberChair.SitAnimKit);
             return;
         }
+        case GAMEOBJECT_TYPE_ARTIFACT_FORGE:
+        {
+            GameObjectTemplate const* info = GetGOInfo();
+            if (!info)
+                return;
+
+            if (user->GetTypeId() != TYPEID_PLAYER)
+                return;
+
+            Player* player = user->ToPlayer();
+            if (PlayerConditionEntry const* playerCondition = sPlayerConditionStore.LookupEntry(info->artifactForge.conditionID1))
+                if (!sConditionMgr->IsPlayerMeetingCondition(player, playerCondition))
+                    return;
+
+            Aura const* artifactAura = player->GetAura(ARTIFACTS_ALL_WEAPONS_GENERAL_WEAPON_EQUIPPED_PASSIVE);
+            Item const* item = artifactAura ? player->GetItemByGuid(artifactAura->GetCastItemGUID()) : nullptr;
+            if (!item)
+            {
+                player->SendDirectMessage(WorldPackets::Misc::DisplayGameError(GameError::ERR_MUST_EQUIP_ARTIFACT).Write());
+                return;
+            }
+
+            WorldPackets::Artifact::ArtifactForgeOpened artifactForgeOpened;
+            artifactForgeOpened.ArtifactGUID = item->GetGUID();
+            artifactForgeOpened.ForgeGUID = GetGUID();
+            player->SendDirectMessage(artifactForgeOpened.Write());
+            return;
+        }
         default:
             if (GetGoType() >= MAX_GAMEOBJECT_TYPE)
                 TC_LOG_ERROR("misc", "GameObject::Use(): unit (type: %u, %s, name: %s) tries to use object (%s, name: %s) of unknown type (%u)",
@@ -2058,8 +2106,8 @@ void GameObject::SetDestructibleState(GameObjectDestructibleState state, Player*
 
             uint32 modelId = m_goInfo->displayId;
             if (DestructibleModelDataEntry const* modelData = sDestructibleModelDataStore.LookupEntry(m_goInfo->destructibleBuilding.DestructibleModelRec))
-                if (modelData->StateDamaged.DisplayID)
-                    modelId = modelData->StateDamaged.DisplayID;
+                if (modelData->StateDamagedDisplayID)
+                    modelId = modelData->StateDamagedDisplayID;
             SetDisplayId(modelId);
 
             if (setHealth)
@@ -2086,8 +2134,8 @@ void GameObject::SetDestructibleState(GameObjectDestructibleState state, Player*
 
             uint32 modelId = m_goInfo->displayId;
             if (DestructibleModelDataEntry const* modelData = sDestructibleModelDataStore.LookupEntry(m_goInfo->destructibleBuilding.DestructibleModelRec))
-                if (modelData->StateDestroyed.DisplayID)
-                    modelId = modelData->StateDestroyed.DisplayID;
+                if (modelData->StateDestroyedDisplayID)
+                    modelId = modelData->StateDestroyedDisplayID;
             SetDisplayId(modelId);
 
             if (setHealth)
@@ -2105,8 +2153,8 @@ void GameObject::SetDestructibleState(GameObjectDestructibleState state, Player*
 
             uint32 modelId = m_goInfo->displayId;
             if (DestructibleModelDataEntry const* modelData = sDestructibleModelDataStore.LookupEntry(m_goInfo->destructibleBuilding.DestructibleModelRec))
-                if (modelData->StateRebuilding.DisplayID)
-                    modelId = modelData->StateRebuilding.DisplayID;
+                if (modelData->StateRebuildingDisplayID)
+                    modelId = modelData->StateRebuildingDisplayID;
             SetDisplayId(modelId);
 
             // restores to full health
