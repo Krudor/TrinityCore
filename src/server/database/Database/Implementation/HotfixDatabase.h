@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2016 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2017 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -110,6 +110,8 @@ enum HotfixDatabaseStatements
 
     HOTFIX_SEL_CHR_SPECIALIZATION,
     HOTFIX_SEL_CHR_SPECIALIZATION_LOCALE,
+
+    HOTFIX_SEL_CINEMATIC_CAMERA,
 
     HOTFIX_SEL_CINEMATIC_SEQUENCES,
 
@@ -371,6 +373,12 @@ enum HotfixDatabaseStatements
     HOTFIX_SEL_RULESET_ITEM_UPGRADE,
 
     HOTFIX_SEL_SCALING_STAT_DISTRIBUTION,
+
+    HOTFIX_SEL_SCENARIO,
+    HOTFIX_SEL_SCENARIO_LOCALE,
+
+    HOTFIX_SEL_SCENARIO_STEP,
+    HOTFIX_SEL_SCENARIO_STEP_LOCALE,
 
     HOTFIX_SEL_SCENE_SCRIPT,
 
