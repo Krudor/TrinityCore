@@ -81,6 +81,7 @@ enum Spells
 
     // Scrabot:
     SPELL_SCRAPBOT_RIDE_VEHICLE                 = 47020,
+    SPELL_SCRAP_REPAIR                          = 62832,
     SPELL_SUICIDE                               = 7,
 
     //------------------BOOMBOT-----------------------
@@ -317,6 +318,7 @@ class boss_xt002 : public CreatureScript
                         ++_heartExposed;
 
                     Talk(EMOTE_SCRAPBOT);
+                    DoCast(who, SPELL_SCRAP_REPAIR, true);
                     _healthRecovered = true;
                 }
 
@@ -1063,6 +1065,51 @@ class spell_xt002_submerged : public SpellScriptLoader
         }
 };
 
+class spell_xt002_321_boombot_aura : public SpellScriptLoader
+{
+    public:
+        spell_xt002_321_boombot_aura() : SpellScriptLoader("spell_xt002_321_boombot_aura") { }
+
+        class spell_xt002_321_boombot_aura_AuraScript : public AuraScript
+        {
+            PrepareAuraScript(spell_xt002_321_boombot_aura_AuraScript);
+
+            bool Validate(SpellInfo const* /*spellInfo*/) override
+            {
+                if (!sSpellMgr->GetSpellInfo(SPELL_ACHIEVEMENT_CREDIT_NERF_SCRAPBOTS))
+                    return false;
+                return true;
+            }
+
+            bool CheckProc(ProcEventInfo& eventInfo)
+            {
+                if (eventInfo.GetActionTarget()->GetEntry() != NPC_XS013_SCRAPBOT)
+                    return false;
+                return true;
+            }
+
+            void HandleProc(AuraEffect const* /*aurEff*/, ProcEventInfo& eventInfo)
+            {
+                InstanceScript* instance = eventInfo.GetActor()->GetInstanceScript();
+                if (!instance)
+                    return;
+
+                instance->DoCastSpellOnPlayers(SPELL_ACHIEVEMENT_CREDIT_NERF_SCRAPBOTS);
+            }
+
+            void Register() override
+            {
+                DoCheckProc += AuraCheckProcFn(spell_xt002_321_boombot_aura_AuraScript::CheckProc);
+                OnEffectProc += AuraEffectProcFn(spell_xt002_321_boombot_aura_AuraScript::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
+            }
+        };
+
+        AuraScript* GetAuraScript() const override
+        {
+            return new spell_xt002_321_boombot_aura_AuraScript();
+        }
+};
+
 class achievement_nerf_engineering : public AchievementCriteriaScript
 {
     public:
@@ -1122,6 +1169,7 @@ void AddSC_boss_xt002()
     new spell_xt002_heart_overload_periodic();
     new spell_xt002_tympanic_tantrum();
     new spell_xt002_submerged();
+    new spell_xt002_321_boombot_aura();
 
     new achievement_nerf_engineering();
     new achievement_heartbreaker();

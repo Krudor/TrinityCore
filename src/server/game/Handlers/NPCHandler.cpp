@@ -16,31 +16,31 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "Common.h"
-#include "Language.h"
-#include "DatabaseEnv.h"
-#include "QueryCallback.h"
-#include "WorldPacket.h"
 #include "WorldSession.h"
-#include "Opcodes.h"
-#include "Log.h"
-#include "ObjectMgr.h"
-#include "SpellMgr.h"
-#include "Player.h"
-#include "GossipDef.h"
-#include "ObjectAccessor.h"
+#include "Battleground.h"
+#include "BattlegroundMgr.h"
+#include "Common.h"
 #include "Creature.h"
+#include "CreatureAI.h"
+#include "DatabaseEnv.h"
+#include "GameObjectAI.h"
+#include "GossipDef.h"
+#include "ItemPackets.h"
+#include "Language.h"
+#include "Log.h"
+#include "MailPackets.h"
+#include "NPCPackets.h"
+#include "ObjectAccessor.h"
+#include "ObjectMgr.h"
+#include "Opcodes.h"
 #include "Pet.h"
 #include "PetPackets.h"
+#include "Player.h"
 #include "ReputationMgr.h"
-#include "BattlegroundMgr.h"
-#include "Battleground.h"
 #include "ScriptMgr.h"
-#include "CreatureAI.h"
-#include "GameObjectAI.h"
 #include "SpellInfo.h"
-#include "NPCPackets.h"
-#include "MailPackets.h"
+#include "SpellMgr.h"
+#include "WorldPacket.h"
 
 enum StableResultCode
 {
@@ -249,8 +249,8 @@ void WorldSession::HandleTrainerBuySpellOpcode(WorldPackets::NPC::TrainerBuySpel
 
     _player->ModifyMoney(-int64(nSpellCost));
 
-    trainer->SendPlaySpellVisualKit(179, 0);    // 53 SpellCastDirected
-    _player->SendPlaySpellVisualKit(362, 1);    // 113 EmoteSalute
+    trainer->SendPlaySpellVisualKit(179, 0, 0);    // 53 SpellCastDirected
+    _player->SendPlaySpellVisualKit(362, 1, 0);    // 113 EmoteSalute
 
     // learn explicitly or cast explicitly
     if (trainerSpell->IsCastable())
