@@ -17,35 +17,37 @@
  */
 
 #include "Object.h"
-#include "Common.h"
-#include "SharedDefines.h"
-#include "WorldPacket.h"
-#include "Opcodes.h"
-#include "Log.h"
-#include "World.h"
-#include "Creature.h"
-#include "Player.h"
-#include "Vehicle.h"
-#include "ObjectMgr.h"
-#include "UpdateData.h"
-#include "Util.h"
-#include "ObjectAccessor.h"
-#include "Transport.h"
-#include "VMapFactory.h"
+#include "AreaTriggerTemplate.h"
+#include "BattlefieldMgr.h"
 #include "CellImpl.h"
-#include "GridNotifiers.h"
+#include "CinematicMgr.h"
+#include "Common.h"
+#include "Creature.h"
 #include "GridNotifiersImpl.h"
+#include "InstanceScenario.h"
+#include "Item.h"
+#include "Log.h"
+#include "MiscPackets.h"
+#include "MovementPackets.h"
+#include "MovementTypedefs.h"
+#include "ObjectAccessor.h"
+#include "ObjectMgr.h"
+#include "OutdoorPvPMgr.h"
+#include "Player.h"
+#include "SharedDefines.h"
 #include "SpellAuraEffects.h"
-#include "UpdateFieldFlags.h"
 #include "TemporarySummon.h"
 #include "Totem.h"
-#include "MovementPackets.h"
-#include "OutdoorPvPMgr.h"
+#include "Transport.h"
 #include "Unit.h"
-#include "BattlefieldMgr.h"
-#include "MiscPackets.h"
-#include "InstanceScenario.h"
-#include "AreaTriggerTemplate.h"
+#include "UpdateData.h"
+#include "UpdateFieldFlags.h"
+#include "Util.h"
+#include "VMapFactory.h"
+#include "Vehicle.h"
+#include "World.h"
+#include "WorldSession.h"
+#include <G3D/Vector3.h>
 
 Object::Object()
 {
@@ -258,7 +260,7 @@ void Object::SendUpdateToPlayer(Player* player)
     else
         BuildCreateUpdateBlockForPlayer(&upd, player);
     upd.BuildPacket(&packet);
-    player->GetSession()->SendPacket(&packet);
+    player->SendDirectMessage(&packet);
 }
 
 void Object::BuildValuesUpdateBlockForPlayer(UpdateData* data, Player* target) const
@@ -353,10 +355,16 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint32 flags) const
     bool SmoothPhasing = false;
     bool SceneObjCreate = false;
     bool PlayerCreateData = false;
+    std::vector<uint32> const* PauseTimes = nullptr;
     uint32 PauseTimesCount = 0;
     if (GameObject const* go = ToGameObject())
+    {
         if (go->GetGoType() == GAMEOBJECT_TYPE_TRANSPORT)
-            PauseTimesCount = go->GetGOValue()->Transport.StopFrames->size();
+        {
+            PauseTimes = go->GetGOValue()->Transport.StopFrames;
+            PauseTimesCount = PauseTimes->size();
+        }
+    }
 
     data->WriteBit(NoBirthAnim);
     data->WriteBit(EnablePortals);
@@ -384,7 +392,7 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint32 flags) const
         bool HasFall = HasFallDirection || unit->m_movementInfo.jump.fallTime != 0;
         bool HasSpline = unit->IsSplineEnabled();
 
-        *data << GetGUID();                                         // MoverGUID
+        *data << GetGUID();                                             // MoverGUID
 
         *data << uint32(unit->m_movementInfo.time);                     // MoveTime
         *data << float(unit->GetPositionX());
@@ -445,7 +453,7 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint32 flags) const
         //    *data << ObjectGuid(ID);
         //    *data << Vector3(Origin);
         //    *data << Vector3(Direction);
-        //    *data << int32(TransportID);
+        //    *data << uint32(TransportID);
         //    *data << float(Magnitude);
         //    data->WriteBits(Type, 2);
         //}
@@ -500,9 +508,8 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint32 flags) const
     if (Rotation)
         *data << uint64(ToGameObject()->GetPackedWorldRotation());      // Rotation
 
-    if (GameObject const* go = ToGameObject())
-        for (uint32 i = 0; i < PauseTimesCount; ++i)
-            *data << uint32(go->GetGOValue()->Transport.StopFrames->at(i));
+    if (PauseTimesCount)
+        data->append(PauseTimes->data(), PauseTimes->size());
 
     if (HasMovementTransport)
     {
@@ -569,15 +576,10 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint32 flags) const
 
         if (hasAreaTriggerSpline)
         {
-            std::vector<G3D::Vector3> const& splinePoints = areaTrigger->GetSpline().getPoints();
-
             *data << uint32(areaTrigger->GetTimeToTarget());
             *data << uint32(areaTrigger->GetElapsedTimeForMovement());
 
-            data->WriteBits(splinePoints.size(), 16);
-
-            for (G3D::Vector3 const& spline : splinePoints)
-                *data << spline.x << spline.y << spline.z;
+            WorldPackets::Movement::CommonMovement::WriteCreateObjectAreaTriggerSpline(areaTrigger->GetSpline(), *data);
         }
 
         if (hasTargetRollPitchYaw)
@@ -624,11 +626,11 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint32 flags) const
             *data << float(areaTriggerTemplate->PolygonDatas.Height);
             *data << float(areaTriggerTemplate->PolygonDatas.HeightTarget);
 
-            for (G3D::Vector2 const& vertice : areaTriggerTemplate->PolygonVertices)
-                *data << vertice.x << vertice.y;
+            for (TaggedPosition<Position::XY> const& vertice : areaTriggerTemplate->PolygonVertices)
+                *data << vertice;
 
-            for (G3D::Vector2 const& vertice : areaTriggerTemplate->PolygonVerticesTarget)
-                *data << vertice.x << vertice.y;
+            for (TaggedPosition<Position::XY> const& vertice : areaTriggerTemplate->PolygonVerticesTarget)
+                *data << vertice;
         }
 
         if (hasAreaTriggerCylinder)
@@ -665,11 +667,11 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint32 flags) const
         }
     }
 
-    //if (GameObject)
+    //if (HasGameObject)
     //{
     //    *data << uint32(WorldEffectID);
-
     //    data->WriteBit(bit8);
+    //    data->FlushBits();
     //    if (bit8)
     //        *data << uint32(Int1);
     //}
@@ -677,7 +679,8 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint32 flags) const
     //if (SmoothPhasing)
     //{
     //    data->WriteBit(ReplaceActive);
-    //    data->WriteBit(HasReplaceObjectt);
+    //    data->WriteBit(HasReplaceObject);
+    //    data->FlushBits();
     //    if (HasReplaceObject)
     //        *data << ObjectGuid(ReplaceObject);
     //}
@@ -686,10 +689,12 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint32 flags) const
     //{
     //    data->WriteBit(HasLocalScriptData);
     //    data->WriteBit(HasPetBattleFullUpdate);
+    //    data->FlushBits();
 
     //    if (HasLocalScriptData)
     //    {
     //        data->WriteBits(Data.length(), 7);
+    //        data->FlushBits();
     //        data->WriteString(Data);
     //    }
 
@@ -705,6 +710,7 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint32 flags) const
     //            *data << uint8(Players[i].InputFlags);
 
     //            data->WriteBits(Players[i].Pets.size(), 2);
+    //            data->FlushBits();
     //            for (std::size_t j = 0; j < Players[i].Pets.size(); ++j)
     //            {
     //                *data << ObjectGuid(Players[i].Pets[j].BattlePetGUID);
@@ -750,6 +756,7 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint32 flags) const
     //                }
 
     //                data->WriteBits(Players[i].Pets[j].CustomName.length(), 7);
+    //                data->FlushBits();
     //                data->WriteString(Players[i].Pets[j].CustomName);
     //            }
     //        }
@@ -784,6 +791,7 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint32 flags) const
     //        *data << ObjectGuid(InitialWildPetGUID);
     //        data->WriteBit(IsPVP);
     //        data->WriteBit(CanAwardXP);
+    //        data->FlushBits();
     //    }
     //}
 
@@ -791,6 +799,7 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint32 flags) const
     //{
     //    data->WriteBit(HasSceneInstanceIDs);
     //    data->WriteBit(HasRuneState);
+    //    data->FlushBits();
     //    if (HasSceneInstanceIDs)
     //    {
     //        *data << uint32(SceneInstanceIDs.size());
@@ -2494,7 +2503,7 @@ TempSummon* WorldObject::SummonCreature(uint32 id, float x, float y, float z, fl
     return SummonCreature(id, pos, spwtype, despwtime, 0);
 }
 
-GameObject* WorldObject::SummonGameObject(uint32 entry, Position const& pos, G3D::Quat const& rot, uint32 respawnTime)
+GameObject* WorldObject::SummonGameObject(uint32 entry, Position const& pos, QuaternionData const& rot, uint32 respawnTime)
 {
     if (!IsInWorld())
         return nullptr;
@@ -2526,7 +2535,7 @@ GameObject* WorldObject::SummonGameObject(uint32 entry, Position const& pos, G3D
     return go;
 }
 
-GameObject* WorldObject::SummonGameObject(uint32 entry, float x, float y, float z, float ang, G3D::Quat const& rot, uint32 respawnTime)
+GameObject* WorldObject::SummonGameObject(uint32 entry, float x, float y, float z, float ang, QuaternionData const& rot, uint32 respawnTime)
 {
     if (!x && !y && !z)
     {

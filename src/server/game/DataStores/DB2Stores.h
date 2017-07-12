@@ -148,6 +148,7 @@ TC_GAME_API extern DB2Storage<QuestMoneyRewardEntry>                sQuestMoneyR
 TC_GAME_API extern DB2Storage<QuestSortEntry>                       sQuestSortStore;
 TC_GAME_API extern DB2Storage<QuestXPEntry>                         sQuestXPStore;
 TC_GAME_API extern DB2Storage<RandPropPointsEntry>                  sRandPropPointsStore;
+TC_GAME_API extern DB2Storage<RewardPackEntry>                      sRewardPackStore;
 TC_GAME_API extern DB2Storage<ScalingStatDistributionEntry>         sScalingStatDistributionStore;
 TC_GAME_API extern DB2Storage<ScenarioEntry>                        sScenarioStore;
 TC_GAME_API extern DB2Storage<ScenarioStepEntry>                    sScenarioStepStore;
@@ -222,20 +223,6 @@ TC_GAME_API extern TaxiMask                                         sAllianceTax
 TC_GAME_API extern TaxiPathSetBySource                              sTaxiPathSetBySource;
 TC_GAME_API extern TaxiPathNodesByPath                              sTaxiPathNodesByPath;
 
-struct HotfixRecord
-{
-    HotfixRecord(uint32 tableHash, int32 recordId) : TableHash(tableHash), RecordId(recordId) { }
-
-    uint32 TableHash;
-    int32 RecordId;
-};
-
-struct HotfixData
-{
-    int32 Id;
-    std::vector<HotfixRecord> Records;
-};
-
 #define DEFINE_DB2_SET_COMPARATOR(structure) \
     struct structure ## Comparator \
     { \
@@ -259,7 +246,7 @@ public:
     DB2StorageBase const* GetStorage(uint32 type) const;
 
     void LoadHotfixData();
-    std::map<int32, HotfixData> const& GetHotfixData() const;
+    std::map<uint64, int32> const& GetHotfixData() const;
 
     std::vector<uint32> GetAreasForGroup(uint32 areaGroupId) const;
     std::vector<ArtifactPowerEntry const*> GetArtifactPowers(uint8 artifactId) const;
@@ -306,11 +293,14 @@ public:
     ResponseCodes ValidateName(std::wstring const& name, LocaleConstant locale) const;
     std::set<uint32> GetPhasesForGroup(uint32 group) const;
     PowerTypeEntry const* GetPowerTypeEntry(Powers power) const;
+    uint8 GetMaxPrestige() const;
     static PvpDifficultyEntry const* GetBattlegroundBracketByLevel(uint32 mapid, uint32 level);
     static PvpDifficultyEntry const* GetBattlegroundBracketById(uint32 mapid, BattlegroundBracketId id);
+    uint32 GetRewardPackIDForPvpRewardByHonorLevelAndPrestige(uint8 honorLevel, uint8 prestige) const;
     std::vector<QuestPackageItemEntry const*> const* GetQuestPackageItems(uint32 questPackageID) const;
     std::vector<QuestPackageItemEntry const*> const* GetQuestPackageItemsFallback(uint32 questPackageID) const;
     uint32 GetQuestUniqueBitFlag(uint32 questId);
+    std::vector<RewardPackXItemEntry const*> const* GetRewardPackItemsByRewardID(uint32 rewardPackID) const;
     uint32 GetRulesetItemUpgrade(uint32 itemId) const;
     SkillRaceClassInfoEntry const* GetSkillRaceClassInfo(uint32 skill, uint8 race, uint8 class_);
     std::vector<SpecializationSpellsEntry const*> const* GetSpecializationSpells(uint32 specId) const;

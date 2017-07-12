@@ -17,27 +17,26 @@
  */
 
 #include "Common.h"
-#include "WorldPacket.h"
-#include "Opcodes.h"
+#include "CellImpl.h"
+#include "Config.h"
+#include "DB2Stores.h"
+#include "DynamicObject.h"
+#include "GridNotifiersImpl.h"
+#include "Item.h"
 #include "Log.h"
+#include "ObjectAccessor.h"
 #include "ObjectMgr.h"
-#include "SpellMgr.h"
 #include "Player.h"
-#include "Unit.h"
+#include "ScriptMgr.h"
 #include "Spell.h"
 #include "SpellAuraEffects.h"
 #include "SpellHistory.h"
+#include "SpellMgr.h"
 #include "SpellPackets.h"
-#include "DynamicObject.h"
-#include "ObjectAccessor.h"
-#include "Util.h"
-#include "GridNotifiers.h"
-#include "GridNotifiersImpl.h"
-#include "CellImpl.h"
-#include "ScriptMgr.h"
 #include "SpellScript.h"
+#include "Unit.h"
+#include "Util.h"
 #include "Vehicle.h"
-#include "Config.h"
 #include "World.h"
 
 AuraApplication::AuraApplication(Unit* target, Unit* caster, Aura* aura, uint32 effMask):
@@ -365,7 +364,7 @@ AuraScript* Aura::GetScriptByName(std::string const& scriptName) const
     for (auto itr = m_loadedScripts.begin(); itr != m_loadedScripts.end(); ++itr)
         if ((*itr)->_GetScriptName()->compare(scriptName) == 0)
             return *itr;
-    return NULL;
+    return nullptr;
 }
 
 SpellEffectInfo const* Aura::GetSpellEffectInfo(uint32 index) const

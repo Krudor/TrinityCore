@@ -19,10 +19,13 @@
 #define ItemPackets_h__
 
 #include "Packet.h"
-#include "Item.h"
+#include "DBCEnums.h"
+#include "ItemDefines.h"
 #include "ItemPacketsCommon.h"
 #include "PacketUtilities.h"
+#include "ObjectGuid.h"
 #include "Optional.h"
+#include <array>
 
 struct VoidStorageItem;
 
@@ -476,7 +479,7 @@ namespace WorldPackets
             void Read() override;
 
             ObjectGuid ItemGuid;
-            ObjectGuid GemItem[MAX_GEM_SOCKETS];
+            std::array<ObjectGuid, MAX_ITEM_PROTO_SOCKETS> GemItem;
         };
 
         class SocketGemsResult final : public ServerPacket
@@ -487,6 +490,38 @@ namespace WorldPackets
             WorldPacket const* Write() override;
 
             ObjectGuid Item;
+        };
+
+        class SortBags final : public ClientPacket
+        {
+        public:
+            SortBags(WorldPacket&& packet) : ClientPacket(CMSG_SORT_BAGS, std::move(packet)) { }
+
+            void Read() override { }
+        };
+
+        class SortBankBags final : public ClientPacket
+        {
+        public:
+            SortBankBags(WorldPacket&& packet) : ClientPacket(CMSG_SORT_BANK_BAGS, std::move(packet)) { }
+
+            void Read() override { }
+        };
+
+        class SortReagentBankBags final : public ClientPacket
+        {
+        public:
+            SortReagentBankBags(WorldPacket&& packet) : ClientPacket(CMSG_SORT_REAGENT_BANK_BAGS, std::move(packet)) { }
+
+            void Read() override { }
+        };
+
+        class SortBagsResult final : public ServerPacket
+        {
+        public:
+            SortBagsResult() : ServerPacket(SMSG_SORT_BAGS_RESULT, 0) { }
+
+            WorldPacket const* Write() override { return &_worldPacket; }
         };
     }
 }

@@ -19,7 +19,10 @@
 #include "WorldSession.h"
 #include "Battleground.h"
 #include "Common.h"
+#include "Creature.h"
 #include "DatabaseEnv.h"
+#include "DB2Stores.h"
+#include "GameObject.h"
 #include "GameObjectAI.h"
 #include "GossipDef.h"
 #include "Group.h"
@@ -238,13 +241,16 @@ void WorldSession::HandleQuestgiverQueryQuestOpcode(WorldPackets::Quest::QuestGi
 
 void WorldSession::HandleQuestQueryOpcode(WorldPackets::Quest::QueryQuestInfo& packet)
 {
-    if (!_player)
-        return;
-
     TC_LOG_DEBUG("network", "WORLD: Received CMSG_QUEST_QUERY quest = %u", packet.QuestID);
 
     if (Quest const* quest = sObjectMgr->GetQuestTemplate(packet.QuestID))
         _player->PlayerTalkClass->SendQuestQueryResponse(quest);
+    else
+    {
+        WorldPackets::Quest::QueryQuestInfoResponse response;
+        response.QuestID = packet.QuestID;
+        SendPacket(response.Write());
+    }
 }
 
 void WorldSession::HandleQuestgiverChooseRewardOpcode(WorldPackets::Quest::QuestGiverChooseReward& packet)
@@ -419,11 +425,6 @@ void WorldSession::HandleQuestgiverRequestRewardOpcode(WorldPackets::Quest::Ques
         _player->PlayerTalkClass->SendQuestGiverOfferReward(quest, packet.QuestGiverGUID, true);
 }
 
-void WorldSession::HandleQuestgiverCancel(WorldPacket& /*recvData*/)
-{
-    _player->PlayerTalkClass->SendCloseGossip();
-}
-
 void WorldSession::HandleQuestLogRemoveQuest(WorldPackets::Quest::QuestLogRemoveQuest& packet)
 {
     TC_LOG_DEBUG("network", "WORLD: Received CMSG_QUESTLOG_REMOVE_QUEST slot = %u", packet.Entry);
@@ -530,7 +531,7 @@ void WorldSession::HandleQuestgiverCompleteQuest(WorldPackets::Quest::QuestGiver
     if (!object)
         return;
 
-    if (autoCompleteMode == 0)
+    if (!autoCompleteMode)
     {
         if (!object->hasInvolvedQuest(packet.QuestID))
             return;
@@ -570,10 +571,6 @@ void WorldSession::HandleQuestgiverCompleteQuest(WorldPackets::Quest::QuestGiver
         else                                            // no items required
             _player->PlayerTalkClass->SendQuestGiverOfferReward(quest, packet.QuestGiverGUID, true);
     }
-}
-
-void WorldSession::HandleQuestgiverQuestAutoLaunch(WorldPacket& /*recvPacket*/)
-{
 }
 
 void WorldSession::HandlePushQuestToParty(WorldPackets::Quest::PushQuestToParty& packet)

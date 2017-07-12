@@ -767,20 +767,6 @@ namespace WorldPackets
             bool EnablePVP = false;
         };
 
-        class WorldTeleport final : public ClientPacket
-        {
-        public:
-            WorldTeleport(WorldPacket&& packet) : ClientPacket(CMSG_WORLD_TELEPORT, std::move(packet)) { }
-
-            void Read() override;
-
-            uint32 MapID = 0;
-            ObjectGuid TransportGUID;
-            TaggedPosition<Position::XYZ> Pos;
-            float Facing = 0.0f;
-            int32 LfgDungeonID = 0;
-        };
-
         class AccountHeirloomUpdate final : public ServerPacket
         {
         public:
@@ -879,6 +865,14 @@ namespace WorldPackets
 
             uint32 MountSpellID = 0;
             bool IsFavorite = false;
+        };
+
+        class PvpPrestigeRankUp final : public ClientPacket
+        {
+        public:
+            PvpPrestigeRankUp(WorldPacket&& packet) : ClientPacket(CMSG_PVP_PRESTIGE_RANK_UP, std::move(packet)) { }
+
+            void Read() override { }
         };
     }
 }
