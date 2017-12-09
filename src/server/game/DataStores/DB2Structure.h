@@ -2521,6 +2521,13 @@ struct SpellLevelsEntry
     uint8 MaxUsableLevel;
 };
 
+struct SpellMiscDifficultyEntry
+{
+    uint32 SpellID;
+    uint8 DifficultyID;
+    uint32 ID;
+};
+
 struct SpellMiscEntry
 {
     uint32 ID;
