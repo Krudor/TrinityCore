@@ -4320,21 +4320,6 @@ struct SpellLevelsLoadInfo
     }
 };
 
-struct SpellMiscDifficultyLoadInfo
-{
-    static DB2LoadInfo const* Instance()
-    {
-        static DB2FieldMeta const fields[] =
-        {
-            { false, FT_INT, "SpellID" },
-            { false, FT_BYTE, "DifficultyID" },
-            { false, FT_INT, "ID" },
-        };
-        static DB2LoadInfo const loadInfo(&fields[0], std::extent<decltype(fields)>::value, SpellMiscDifficultyMeta::Instance(), HOTFIX_SEL_SPELL_MISC_DIFFICULTY);
-        return &loadInfo;
-    }
-};
-
 struct SpellMiscLoadInfo
 {
     static DB2LoadInfo const* Instance()
@@ -4366,6 +4351,21 @@ struct SpellMiscLoadInfo
             { false, FT_INT, "ActiveIconFileDataID" },
         };
         static DB2LoadInfo const loadInfo(&fields[0], std::extent<decltype(fields)>::value, SpellMiscMeta::Instance(), HOTFIX_SEL_SPELL_MISC);
+        return &loadInfo;
+    }
+};
+
+struct SpellMiscDifficultyLoadInfo
+{
+    static DB2LoadInfo const* Instance()
+    {
+        static DB2FieldMeta const fields[] =
+        {
+            { false, FT_INT, "SpellID" },
+            { false, FT_BYTE, "DifficultyID" },
+            { false, FT_INT, "ID" },
+        };
+        static DB2LoadInfo const loadInfo(&fields[0], std::extent<decltype(fields)>::value, SpellMiscDifficultyMeta::Instance(), HOTFIX_SEL_SPELL_MISC_DIFFICULTY);
         return &loadInfo;
     }
 };
