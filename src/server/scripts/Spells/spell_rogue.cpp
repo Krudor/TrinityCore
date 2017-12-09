@@ -46,8 +46,9 @@ enum RogueSpells
     SPELL_ROGUE_KILLING_SPREE_DMG_BUFF              = 61851,
     SPELL_ROGUE_MASTER_OF_SUBTLETY_DAMAGE_PERCENT   = 31665,
     SPELL_ROGUE_MASTER_OF_SUBTLETY_PASSIVE          = 31223,
-    SPELL_ROGUE_MASTER_OF_SUBTLETY_PERIODIC         = 31666,
     SPELL_ROGUE_SANCTUARY                           = 98877,
+    SPELL_ROGUE_SHADOW_FOCUS                        = 108209,
+    SPELL_ROGUE_SHADOW_FOCUS_EFFECT                 = 112942,
     SPELL_ROGUE_STEALTH                             = 1784,
     SPELL_ROGUE_STEALTH_STEALTH_AURA                = 158185,
     SPELL_ROGUE_STEALTH_SHAPESHIFT_AURA             = 158188,
@@ -94,10 +95,11 @@ class spell_rog_blade_flurry : public SpellScriptLoader
             {
                 PreventDefaultAction();
 
-                TC_LOG_ERROR("misc", "damage: %u procSpell: %u",
-                    eventInfo.GetDamageInfo()->GetDamage(), eventInfo.GetDamageInfo()->GetSpellInfo() ? eventInfo.GetDamageInfo()->GetSpellInfo()->Id : 0);
-
-                GetTarget()->CastCustomSpell(SPELL_ROGUE_BLADE_FLURRY_EXTRA_ATTACK, SPELLVALUE_BASE_POINT0, eventInfo.GetDamageInfo()->GetDamage(), _procTarget, true, NULL, aurEff);
+                if (DamageInfo* damageInfo = eventInfo.GetDamageInfo())
+                {
+                    int32 damage = damageInfo->GetDamage();
+                    GetTarget()->CastCustomSpell(SPELL_ROGUE_BLADE_FLURRY_EXTRA_ATTACK, SPELLVALUE_BASE_POINT0, damage, _procTarget, true, nullptr, aurEff);
+                }
             }
 
             void Register() override
@@ -618,8 +620,9 @@ class spell_rog_stealth : public SpellScriptLoader
                 {
                     SPELL_ROGUE_MASTER_OF_SUBTLETY_PASSIVE,
                     SPELL_ROGUE_MASTER_OF_SUBTLETY_DAMAGE_PERCENT,
-                    SPELL_ROGUE_MASTER_OF_SUBTLETY_PERIODIC,
                     SPELL_ROGUE_SANCTUARY,
+                    SPELL_ROGUE_SHADOW_FOCUS,
+                    SPELL_ROGUE_SHADOW_FOCUS_EFFECT,
                     SPELL_ROGUE_STEALTH_STEALTH_AURA,
                     SPELL_ROGUE_STEALTH_SHAPESHIFT_AURA
                 });
@@ -630,8 +633,12 @@ class spell_rog_stealth : public SpellScriptLoader
                 Unit* target = GetTarget();
 
                 // Master of Subtlety
-                if (AuraEffect const* aurEff = target->GetAuraEffect(SPELL_ROGUE_MASTER_OF_SUBTLETY_PASSIVE, EFFECT_0))
-                    target->CastCustomSpell(SPELL_ROGUE_MASTER_OF_SUBTLETY_DAMAGE_PERCENT, SPELLVALUE_BASE_POINT0, aurEff->GetAmount(), target, true);
+                if (target->HasAura(SPELL_ROGUE_MASTER_OF_SUBTLETY_PASSIVE))
+                    target->CastSpell(target, SPELL_ROGUE_MASTER_OF_SUBTLETY_DAMAGE_PERCENT, TRIGGERED_FULL_MASK);
+
+                // Shadow Focus
+                if (target->HasAura(SPELL_ROGUE_SHADOW_FOCUS))
+                    target->CastSpell(target, SPELL_ROGUE_SHADOW_FOCUS_EFFECT, TRIGGERED_FULL_MASK);
 
                 target->CastSpell(target, SPELL_ROGUE_SANCTUARY, TRIGGERED_FULL_MASK);
                 target->CastSpell(target, SPELL_ROGUE_STEALTH_STEALTH_AURA, TRIGGERED_FULL_MASK);
@@ -642,10 +649,17 @@ class spell_rog_stealth : public SpellScriptLoader
             {
                 Unit* target = GetTarget();
 
-                // Master of subtlety
-                if (target->HasAura(SPELL_ROGUE_MASTER_OF_SUBTLETY_PASSIVE))
-                    target->CastSpell(target, SPELL_ROGUE_MASTER_OF_SUBTLETY_PERIODIC, true);
+                // Master of Subtlety
+                if (AuraEffect* masterOfSubtletyPassive = GetTarget()->GetAuraEffect(SPELL_ROGUE_MASTER_OF_SUBTLETY_PASSIVE, EFFECT_0))
+                {
+                    if (Aura* masterOfSubtletyAura = GetTarget()->GetAura(SPELL_ROGUE_MASTER_OF_SUBTLETY_DAMAGE_PERCENT))
+                    {
+                        masterOfSubtletyAura->SetMaxDuration(masterOfSubtletyPassive->GetAmount());
+                        masterOfSubtletyAura->RefreshDuration();
+                    }
+                }
 
+                target->RemoveAurasDueToSpell(SPELL_ROGUE_SHADOW_FOCUS_EFFECT);
                 target->RemoveAurasDueToSpell(SPELL_ROGUE_STEALTH_STEALTH_AURA);
                 target->RemoveAurasDueToSpell(SPELL_ROGUE_STEALTH_SHAPESHIFT_AURA);
             }

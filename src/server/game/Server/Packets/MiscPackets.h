@@ -479,8 +479,8 @@ namespace WorldPackets
 
             int32 Level = 0;
             int32 HealthDelta = 0;
-            std::array<int32, 6> PowerDelta;
-            std::array<int32, MAX_STATS> StatDelta;
+            std::array<int32, 6> PowerDelta = { };
+            std::array<int32, MAX_STATS> StatDelta = { };
             int32 Cp = 0;
         };
 
@@ -873,6 +873,16 @@ namespace WorldPackets
             PvpPrestigeRankUp(WorldPacket&& packet) : ClientPacket(CMSG_PVP_PRESTIGE_RANK_UP, std::move(packet)) { }
 
             void Read() override { }
+        };
+
+        class CloseInteraction final : public ClientPacket
+        {
+        public:
+            CloseInteraction(WorldPacket&& packet) : ClientPacket(CMSG_CLOSE_INTERACTION, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid SourceGuid;
         };
     }
 }

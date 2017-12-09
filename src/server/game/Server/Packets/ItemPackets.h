@@ -479,7 +479,7 @@ namespace WorldPackets
             void Read() override;
 
             ObjectGuid ItemGuid;
-            std::array<ObjectGuid, MAX_ITEM_PROTO_SOCKETS> GemItem;
+            std::array<ObjectGuid, MAX_ITEM_PROTO_SOCKETS> GemItem = { };
         };
 
         class SocketGemsResult final : public ServerPacket
@@ -522,6 +522,16 @@ namespace WorldPackets
             SortBagsResult() : ServerPacket(SMSG_SORT_BAGS_RESULT, 0) { }
 
             WorldPacket const* Write() override { return &_worldPacket; }
+        };
+
+        class RemoveNewItem final : public ClientPacket
+        {
+        public:
+            RemoveNewItem(WorldPacket&& packet) : ClientPacket(CMSG_REMOVE_NEW_ITEM, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid ItemGuid;
         };
     }
 }

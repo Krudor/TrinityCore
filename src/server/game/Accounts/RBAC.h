@@ -577,7 +577,7 @@ enum RBACPermissions
     RBAC_PERM_COMMAND_RELOAD_MAIL_LOOT_TEMPLATE              = 669,
     RBAC_PERM_COMMAND_RELOAD_MILLING_LOOT_TEMPLATE           = 670,
     RBAC_PERM_COMMAND_RELOAD_NPC_SPELLCLICK_SPELLS           = 671,
-    RBAC_PERM_COMMAND_RELOAD_NPC_TRAINER                     = 672,
+    RBAC_PERM_COMMAND_RELOAD_TRAINER                         = 672,
     RBAC_PERM_COMMAND_RELOAD_NPC_VENDOR                      = 673,
     RBAC_PERM_COMMAND_RELOAD_PAGE_TEXT                       = 674,
     RBAC_PERM_COMMAND_RELOAD_PICKPOCKETING_LOOT_TEMPLATE     = 675,
@@ -603,7 +603,7 @@ enum RBACPermissions
     RBAC_PERM_COMMAND_RELOAD_SPELL_LOOT_TEMPLATE             = 695,
     RBAC_PERM_COMMAND_RELOAD_SPELL_LINKED_SPELL              = 696,
     RBAC_PERM_COMMAND_RELOAD_SPELL_PET_AURAS                 = 697,
-    RBAC_PERM_COMMAND_RELOAD_SPELL_PROC_EVENT                = 698,
+    // 698 - reuse
     RBAC_PERM_COMMAND_RELOAD_SPELL_PROC                      = 699,
     RBAC_PERM_COMMAND_RELOAD_SPELL_SCRIPTS                   = 700,
     RBAC_PERM_COMMAND_RELOAD_SPELL_TARGET_POSITION           = 701,
@@ -765,7 +765,13 @@ enum RBACPermissions
     RBAC_PERM_COMMAND_GOBJECT_SPAWNGROUP                     = 858, // reserved for dynamic_spawning
     RBAC_PERM_COMMAND_GOBJECT_DESPAWNGROUP                   = 859, // reserved for dynamic_spawning
     RBAC_PERM_COMMAND_LIST_RESPAWNS                          = 860, // reserved for dynamic_spawning
-
+    RBAC_PERM_COMMAND_GROUP_SET                              = 861, // reserved
+    RBAC_PERM_COMMAND_GROUP_ASSISTANT                        = 862, // reserved
+    RBAC_PERM_COMMAND_GROUP_MAINTANK                         = 863, // reserved
+    RBAC_PERM_COMMAND_GROUP_MAINASSIST                       = 864, // reserved
+    RBAC_PERM_COMMAND_NPC_SHOWLOOT                           = 865, // reserved
+    RBAC_PERM_COMMAND_LIST_SPAWNPOINTS                       = 866, // reserved
+    RBAC_PERM_COMMAND_MODIFY_POWER                           = 867,
     // custom permissions 1000+
     RBAC_PERM_MAX
 };

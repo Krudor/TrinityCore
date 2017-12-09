@@ -326,16 +326,33 @@ struct BroadcastTextEntry
     uint32 PlayerConditionID;
 };
 
+struct CharacterFacialHairStylesEntry
+{
+    uint32 ID;
+    uint32 Geoset[5];
+    uint8 RaceID;
+    uint8 SexID;
+    uint8 VariationID;
+};
+
+struct CharBaseSectionEntry
+{
+    uint32 ID;
+    uint8 Variation;
+    uint8 ResolutionVariation;
+    uint8 Resolution;
+};
+
 struct CharSectionsEntry
 {
     uint32 ID;
     uint32 TextureFileDataID[3];
     uint16 Flags;
-    uint8 Race;
-    uint8 Gender;
-    uint8 GenType;
-    uint8 Type;
-    uint8 Color;
+    uint8 RaceID;
+    uint8 SexID;
+    uint8 BaseSection;
+    uint8 VariationIndex;
+    uint8 ColorIndex;
 };
 
 #define MAX_OUTFIT_ITEMS 24
@@ -710,6 +727,12 @@ struct CriteriaEntry
 
         // CRITERIA_TYPE_COMPLETE_GARRISON_SHIPMENT = 182
         uint32 CharShipmentContainerID;
+
+        // CRITERIA_TYPE_APPEARANCE_UNLOCKED_BY_SLOT
+        uint32 EquipmentSlot;
+
+        // CRITERIA_TYPE_TRANSMOG_SET_UNLOCKED = 205
+        uint32 TransmogSetGroupID;
     } Asset;
     uint32 StartAsset;
     uint32 FailAsset;
@@ -951,6 +974,7 @@ struct FactionTemplateEntry
         return EnemyMask == 0 && FriendMask == 0;
     }
     bool IsContestedGuardFaction() const { return (Flags & FACTION_TEMPLATE_FLAG_CONTESTED_GUARD) != 0; }
+    bool ShouldSparAttack() const { return (Flags & FACTION_TEMPLATE_ENEMY_SPAR) != 0; }
 };
 
 struct GameObjectsEntry
@@ -1433,6 +1457,12 @@ struct ItemExtendedCostEntry
     uint8 RequiredFactionStanding;
     uint8 RequirementFlags;
     uint8 RequiredAchievement;
+};
+
+struct ItemLevelSelectorEntry
+{
+    uint32 ID;
+    uint16 ItemLevel;
 };
 
 struct ItemLimitCategoryEntry
@@ -2521,7 +2551,7 @@ struct SpellMiscEntry
 struct SpellPowerEntry
 {
     uint32 SpellID;
-    uint32 ManaCost;
+    int32 ManaCost;
     float ManaCostPercentage;
     float ManaCostPercentagePerSecond;
     uint32 RequiredAura;
@@ -2531,7 +2561,7 @@ struct SpellPowerEntry
     uint32 ID;
     int32 ManaCostPerLevel;
     int32 ManaCostPerSecond;
-    uint32 ManaCostAdditional;                                      // Spell uses [ManaCost, ManaCost+ManaCostAdditional] power - affects tooltip parsing as multiplier on SpellEffectEntry::EffectPointsPerResource
+    int32 ManaCostAdditional;                                       // Spell uses [ManaCost, ManaCost+ManaCostAdditional] power - affects tooltip parsing as multiplier on SpellEffectEntry::EffectPointsPerResource
                                                                     //   only SPELL_EFFECT_WEAPON_DAMAGE_NOSCHOOL, SPELL_EFFECT_WEAPON_PERCENT_DAMAGE, SPELL_EFFECT_WEAPON_DAMAGE, SPELL_EFFECT_NORMALIZED_WEAPON_DMG
     uint32 PowerDisplayID;
     uint32 UnitPowerBarID;
@@ -2750,6 +2780,40 @@ struct ToyEntry
     uint32 ID;
 };
 
+struct TransmogHolidayEntry
+{
+    uint32 ID;
+    int32 HolidayID;
+};
+
+struct TransmogSetEntry
+{
+    LocalizedString* Name;
+    uint16 BaseSetID;
+    uint16 UIOrder;
+    uint8 ExpansionID;
+    uint32 ID;
+    int32 Flags;
+    int32 QuestID;
+    int32 ClassMask;
+    int32 ItemNameDescriptionID;
+    uint32 TransmogSetGroupID;
+};
+
+struct TransmogSetGroupEntry
+{
+    LocalizedString* Label;
+    uint32 ID;
+};
+
+struct TransmogSetItemEntry
+{
+    uint32 ID;
+    uint32 TransmogSetID;
+    uint32 ItemModifiedAppearanceID;
+    int32 Flags;
+};
+
 struct TransportAnimationEntry
 {
     uint32 ID;
@@ -2923,6 +2987,17 @@ struct WMOAreaTableEntry
     uint8 Flags;
     uint32 ID;
     uint32 UWZoneMusic;
+};
+
+struct WorldEffectEntry
+{
+    uint32 ID;
+    uint32 TargetAsset;
+    uint16 CombatConditionID;
+    uint8 TargetType;
+    uint8 WhenToDisplay;
+    uint32 QuestFeedbackEffectID;
+    uint32 PlayerConditionID;
 };
 
 struct WorldMapAreaEntry
