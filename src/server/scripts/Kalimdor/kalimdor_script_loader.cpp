@@ -94,6 +94,9 @@ void AddSC_instance_firelands();
 void AddSC_firelands();
 void AddSC_boss_alysrazor();
 void AddSC_boss_baleroc();
+void AddSC_instance_dragon_soul();
+void AddSC_dragon_soul();
+void AddSC_boss_warmaster_blackhorn();
 
 void AddSC_ashenvale();
 void AddSC_azshara();
@@ -223,4 +226,7 @@ void AddKalimdorScripts()
     AddSC_firelands();
     AddSC_boss_alysrazor();
     AddSC_boss_baleroc();
+    AddSC_instance_dragon_soul();
+    AddSC_dragon_soul();
+    AddSC_boss_warmaster_blackhorn();
 }
